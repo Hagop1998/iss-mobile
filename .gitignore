@@ -32,6 +32,33 @@ yarn-error.*
 
 # local env files
 .env*.local
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+build/
+dist/
+*.apk
+*.aab
+*.ipa
+
+# Temporary files
+*.tmp
+*.temp
 
 # typescript
 *.tsbuildinfo
