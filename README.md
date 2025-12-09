@@ -11,6 +11,10 @@ A React Native app built with Expo for both Android and iOS platforms. This app 
 - **Responsive Design**: Optimized for both Android and iOS devices
 - **Keyboard Handling**: Proper keyboard avoidance and input focus management
 - **Error Handling**: User-friendly error messages and validation feedback
+- **QR Code Generation**: Generate QR codes for access control (Smart Intercom, Elevator, Barrier)
+- **PIN Code Access**: Get access codes for secure entry
+- **Family Members**: Invite and manage family members
+- **Profile Management**: User profile with support and contact options
 
 ## Project Structure
 
@@ -22,9 +26,20 @@ src/
 │   ├── PasswordStrengthIndicator.js
 │   └── LanguageSelector.js
 ├── screens/            # Screen components
-│   └── SignUpScreen.js
+│   ├── SignUpScreen.js
+│   ├── SignInScreen.js
+│   ├── HomeScreen.js
+│   ├── GenerateQRCodeScreen.js
+│   ├── PinAccessScreen.js
+│   └── ...
 ├── constants/          # App constants
-│   └── colors.js
+│   ├── colors.js
+│   └── enums.js
+├── services/           # API services
+│   ├── api.js
+│   └── qrApi.js
+├── store/              # Redux store
+│   └── slices/
 └── utils/              # Utility functions
     └── validation.js
 ```
@@ -42,7 +57,7 @@ src/
 
 1. Navigate to the project directory:
    ```bash
-   cd ISSApp
+   cd ISS_mobile_app
    ```
 
 2. Install dependencies:
@@ -60,6 +75,14 @@ src/
 - **Android**: `npm run android`
 - **iOS**: `npm run ios`
 - **Web**: `npm run web`
+
+## API Configuration
+
+The app uses environment variables for API configuration. Update `src/config/env.js` with your API base URL:
+
+```javascript
+BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'https://your-api-url.com'
+```
 
 ## Components
 
@@ -99,7 +122,7 @@ The app includes comprehensive form validation:
 ## Styling
 
 The app uses a consistent design system with:
-- Purple primary color scheme
+- Purple primary color scheme (#3C0056)
 - Gray scale for secondary elements
 - Proper spacing and typography
 - Responsive design principles
