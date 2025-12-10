@@ -234,46 +234,55 @@ const FaceRecognitionScreen = ({ navigation, route }) => {
       }
 
       console.log('✅ Photo captured:', photo.uri);
+      console.log('📐 Original photo dimensions:', photo.width, 'x', photo.height);
       setScanProgress(20);
       setRecognitionStatus('analyzing');
 
-      // Step 2: Resize image to medium size from enum on frontend
-      // const targetSize = imageSizeEnum.medium; 
-      // const [targetWidth, targetHeight] = targetSize.split('x').map(Number);
+      // Step 2: Crop and resize image to focus on face area
+      // Crop from center-upper portion to focus on face (not full body)
+      const originalWidth = photo.width;
+      const originalHeight = photo.height;
       
-      // console.log('🔄 Resizing image to', targetSize, 'on frontend...');
-      console.log('📐 Original photo dimensions:', photo.width, 'x', photo.height);
-      // console.log('📐 Target dimensions from enum:', targetWidth, 'x', targetHeight);
+      // Calculate crop area: focus on upper-center portion (where face is)
+      // Crop 60% from top, 20% from each side, 40% from bottom
+      const cropX = originalWidth * 0.2; // Start 20% from left
+      const cropY = originalHeight * 0.1; // Start 10% from top (focus on upper body/face)
+      const cropWidth = originalWidth * 0.6; // Take 60% width (center portion)
+      const cropHeight = originalHeight * 0.5; // Take 50% height (upper portion)
+      
+      console.log('✂️ Cropping image to focus on face area...');
+      console.log(`   Crop area: x=${cropX}, y=${cropY}, width=${cropWidth}, height=${cropHeight}`);
       
       let resizedPhoto;
       try {
-        // Resize to medium size from enum (800x800)
+        // First crop to face area, then resize to 640x480 (backend recommended size)
         resizedPhoto = await ImageManipulator.manipulateAsync(
           photo.uri,
-          // [
-          //   { resize: { width: targetWidth, height: targetHeight } },
-          // ],
-          [],
+          [
+            {
+              crop: {
+                originX: cropX,
+                originY: cropY,
+                width: cropWidth,
+                height: cropHeight,
+              },
+            },
+            { resize: { width: 800, height: 800 } }, // Backend recommended size
+          ],
           {
             compress: 0.8,
             format: ImageManipulator.SaveFormat.JPEG, // Ensure JPG format
           }
         );
         
-        console.log('✅ Image resized successfully on frontend');
-        console.log('📐 Resized dimensions:', resizedPhoto.width, 'x', resizedPhoto.height);
-        console.log('📁 Resized file URI:', resizedPhoto.uri);
-        
-        // Verify dimensions match enum value
-        // if ( resizedPhoto.height !== targetHeight) {
-        //   // console.warn(`⚠️ Warning: Resized dimensions do not match expected ${targetSize}`);
-        //   console.warn('   Actual:', resizedPhoto.width, 'x', resizedPhoto.height);
-        // }
+        console.log('✅ Image cropped and resized successfully');
+        console.log('📐 Final dimensions:', resizedPhoto.width, 'x', resizedPhoto.height);
+        console.log('📁 Final file URI:', resizedPhoto.uri);
       } catch (resizeError) {
-        console.error('❌ Error resizing image on frontend:', resizeError);
+        console.error('❌ Error cropping/resizing image on frontend:', resizeError);
         console.error('❌ Resize error details:', JSON.stringify(resizeError, null, 2));
         // Don't fallback - throw error so user knows resize failed
-        throw new Error(`Failed to resize image: ${resizeError?.message || 'Unknown error'}`);
+        throw new Error(`Failed to process image: ${resizeError?.message || 'Unknown error'}`);
       }
 
       setScanProgress(30);
@@ -358,28 +367,28 @@ const FaceRecognitionScreen = ({ navigation, route }) => {
       console.log('✅ Face registered successfully:', regFaceResponse);
       
       setScanProgress(100);
-      setRecognitionStatus('success');
-      setIsScanning(false);
-
-      Alert.alert(
+        setRecognitionStatus('success');
+        setIsScanning(false);
+        
+        Alert.alert(
         '✅ Face Registered',
         `Your face has been successfully registered!\n\nCard SN: ${cardSN}\nService: ${service || 'Access Control'}`,
-        [
-          { 
-            text: 'OK', 
-            onPress: () => {
+          [
+            { 
+              text: 'OK', 
+              onPress: () => {
               console.log('Face registration successful, navigating back...');
-              navigation.goBack();
+                navigation.goBack();
+              }
             }
-          }
-        ]
-      );
+          ]
+        );
     } catch (error) {
       console.error('❌ Face registration error:', error);
       console.error('❌ Error details:', JSON.stringify(error, null, 2));
-      setRecognitionStatus('failed');
-      setIsScanning(false);
-      
+        setRecognitionStatus('failed');
+        setIsScanning(false);
+        
       // Extract error message from various possible formats
       let errorMessage = 'Failed to register face. Please try again.';
       
@@ -398,35 +407,35 @@ const FaceRecognitionScreen = ({ navigation, route }) => {
       } else if (typeof error === 'string') {
         errorMessage = error;
       }
-      
-      Alert.alert(
+        
+        Alert.alert(
         '❌ Registration Failed',
         errorMessage,
-        [
-          { 
-            text: 'Try Again', 
-            onPress: () => {
-              setRecognitionStatus('idle');
-              setScanProgress(0);
-            }
-          },
-          { text: 'Cancel', onPress: () => navigation.goBack() }
-        ]
-      );
-    }
+          [
+            { 
+              text: 'Try Again', 
+              onPress: () => {
+                setRecognitionStatus('idle');
+                setScanProgress(0);
+              }
+            },
+            { text: 'Cancel', onPress: () => navigation.goBack() }
+          ]
+        );
+      }
   };
 
   // Permission denied screen
   if (cameraPermission && !cameraPermission.granted) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Face Recognition</Text>
-          <View style={styles.headerSpacer} />
-        </View>
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Face Recognition</Text>
+        <View style={styles.headerSpacer} />
+      </View>
         <View style={styles.permissionContainer}>
           <View style={styles.permissionCard}>
             <Ionicons name="camera" size={36} color={colors.primary} />
@@ -464,119 +473,116 @@ const FaceRecognitionScreen = ({ navigation, route }) => {
             </Text>
           </View>
         ) : (
-          <CameraView
-            ref={cameraRef}
-            style={StyleSheet.absoluteFill}
-            facing="front"
-            onCameraReady={() => {
-              console.log('Front camera is ready');
-              setIsCameraReady(true);
-              setMountError(null);
-            }}
-            onMountError={(e) => {
-              const message = e?.nativeEvent?.message || e?.message || 'Camera failed to mount';
-              setMountError(message);
-              console.error('Camera mount error:', message, e);
-            }}
-          />
+          <View style={styles.cameraWrapper}>
+            <CameraView
+              ref={cameraRef}
+              style={styles.cameraView}
+              facing="front"
+              onCameraReady={() => {
+                console.log('Front camera is ready');
+                setIsCameraReady(true);
+                setMountError(null);
+              }}
+              onMountError={(e) => {
+                const message = e?.nativeEvent?.message || e?.message || 'Camera failed to mount';
+                setMountError(message);
+                console.error('Camera mount error:', message, e);
+              }}
+            />
+          </View>
         )}
+
+        {/* Dark Overlay Mask - Only frame area is visible */}
+        <View style={styles.overlayMask}>
+          {/* Top dark area */}
+          <View style={styles.maskTop} />
+          {/* Middle section with frame cutout */}
+          <View style={styles.maskMiddleRow}>
+            <View style={styles.maskLeft} />
+            <View style={styles.frameCutout} />
+            <View style={styles.maskRight} />
+          </View>
+          {/* Bottom dark area */}
+          <View style={styles.maskBottom} />
+      </View>
 
         {/* Overlay Content */}
         <View style={styles.overlay}>
-          {/* Info Banner */}
-          <View style={styles.infoBanner}>
-            <Ionicons name="information-circle" size={20} color={colors.white} />
+        {/* Info Banner */}
+        <View style={styles.infoBanner}>
+            <Ionicons name="information-circle" size={18} color={colors.white} />
             <Text style={styles.infoBannerTextWhite}>
-              {service ? `Access for: ${service}` : 'Face Recognition Access'}
-            </Text>
-          </View>
+            {service ? `Access for: ${service}` : 'Face Recognition Access'}
+          </Text>
+        </View>
 
-          {/* Scan Area with Animation */}
-          <View style={styles.scanArea}>
-            <Animated.View 
-              style={[
-                styles.faceFrame, 
-                isScanning && styles.faceFrameActive,
-                { transform: [{ scale: pulseAnimation }] }
-              ]}
-            >
+          {/* Scan Area with Animation - Centered */}
+        <View style={styles.scanArea}>
+          <Animated.View 
+            style={[
+              styles.faceFrame, 
+              isScanning && styles.faceFrameActive,
+              { transform: [{ scale: pulseAnimation }] }
+            ]}
+          >
               {recognitionStatus === 'success' && (
-                <Ionicons name="checkmark-circle" size={80} color={colors.green[500]} />
+                <Ionicons name="checkmark-circle" size={70} color={colors.green[500]} />
               )}
               {recognitionStatus === 'failed' && (
-                <Ionicons name="close-circle" size={80} color={colors.red[500]} />
+                <Ionicons name="close-circle" size={70} color={colors.red[500]} />
               )}
-            </Animated.View>
-            
-            {/* Animated Scan Line */}
-            {isScanning && (
-              <Animated.View 
-                style={[
-                  styles.scanLine,
-                  {
-                    transform: [{
-                      translateY: scanAnimation.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [-140, 140],
-                      }),
-                    }],
-                  },
-                ]} 
-              />
-            )}
-
-            {/* Corner Brackets */}
-            <View style={styles.cornerTopLeft} />
-            <View style={styles.cornerTopRight} />
-            <View style={styles.cornerBottomLeft} />
-            <View style={styles.cornerBottomRight} />
-          </View>
-
-          {/* Progress Bar */}
+          </Animated.View>
+          
+          {/* Animated Scan Line */}
           {isScanning && (
-            <View style={styles.progressContainer}>
-              <View style={styles.progressBarBackground}>
-                <View style={[styles.progressBarFill, { width: `${scanProgress}%` }]} />
-              </View>
-              <Text style={styles.progressTextWhite}>{scanProgress}%</Text>
-            </View>
+            <Animated.View 
+              style={[
+                styles.scanLine,
+                {
+                  transform: [{
+                    translateY: scanAnimation.interpolate({
+                      inputRange: [0, 1],
+                        outputRange: [-130, 130],
+                    }),
+                  }],
+                },
+              ]} 
+            />
           )}
+        </View>
 
-          {/* Instructions */}
-          <View style={styles.instructionsContainer}>
-            <Text style={styles.titleWhite}>
-              {recognitionStatus === 'scanning' && 'Scanning Face...'}
-              {recognitionStatus === 'analyzing' && 'Analyzing...'}
-              {recognitionStatus === 'success' && 'Face Recognized!'}
-              {recognitionStatus === 'failed' && 'Recognition Failed'}
-              {recognitionStatus === 'idle' && 'Position Your Face'}
-            </Text>
-            <Text style={styles.subtitleWhite}>
-              {recognitionStatus === 'scanning' && 'Capturing facial features...'}
-              {recognitionStatus === 'analyzing' && 'Matching with database...'}
-              {recognitionStatus === 'success' && 'Access granted successfully'}
-              {recognitionStatus === 'failed' && 'Please try again'}
-              {recognitionStatus === 'idle' && 'Center your face within the frame and tap start'}
-            </Text>
+          {/* Status Section */}
+          <View style={styles.statusSection}>
+        {/* Progress Bar */}
+        {isScanning && (
+          <View style={styles.progressContainer}>
+            <View style={styles.progressBarBackground}>
+              <View style={[styles.progressBarFill, { width: `${scanProgress}%` }]} />
+            </View>
+                <Text style={styles.progressTextWhite}>{scanProgress}%</Text>
           </View>
+        )}
 
-          {/* Features */}
-          <View style={styles.featuresContainer}>
-            <View style={styles.featureItem}>
-              <Ionicons name="shield-checkmark" size={20} color={colors.green[500]} />
-              <Text style={styles.featureTextWhite}>Secure</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="flash" size={20} color={colors.orange[500]} />
-              <Text style={styles.featureTextWhite}>Fast</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="lock-closed" size={20} color={colors.blue[500]} />
-              <Text style={styles.featureTextWhite}>Encrypted</Text>
-            </View>
+        {/* Instructions */}
+        <View style={styles.instructionsContainer}>
+              <Text style={styles.titleWhite}>
+            {recognitionStatus === 'scanning' && 'Scanning Face...'}
+            {recognitionStatus === 'analyzing' && 'Analyzing...'}
+            {recognitionStatus === 'success' && 'Face Recognized!'}
+            {recognitionStatus === 'failed' && 'Recognition Failed'}
+            {recognitionStatus === 'idle' && 'Position Your Face'}
+          </Text>
+              <Text style={styles.subtitleWhite}>
+            {recognitionStatus === 'scanning' && 'Capturing facial features...'}
+            {recognitionStatus === 'analyzing' && 'Matching with database...'}
+            {recognitionStatus === 'success' && 'Access granted successfully'}
+            {recognitionStatus === 'failed' && 'Please try again'}
+                {recognitionStatus === 'idle' && 'Center your face within the frame'}
+          </Text>
           </View>
+        </View>
 
-          {/* Action Button */}
+        {/* Action Button */}
           {!isScanning || recognitionStatus === 'idle' ? (
             <TouchableOpacity
               style={styles.scanButton}
@@ -605,31 +611,31 @@ const FaceRecognitionScreen = ({ navigation, route }) => {
               <Text style={styles.scanButtonText}>Capture Photo</Text>
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity
-              style={[
-                styles.scanButton,
-                recognitionStatus === 'success' && styles.scanButtonSuccess,
+        <TouchableOpacity
+          style={[
+            styles.scanButton, 
+            recognitionStatus === 'success' && styles.scanButtonSuccess,
                 recognitionStatus === 'failed' && styles.scanButtonFailed,
                 (recognitionStatus === 'analyzing') && styles.scanButtonActive
-              ]}
+          ]}
               disabled={true}
-            >
-              <Ionicons 
-                name={
-                  recognitionStatus === 'success' ? 'checkmark' :
-                  recognitionStatus === 'failed' ? 'close' :
+        >
+          <Ionicons 
+            name={
+              recognitionStatus === 'success' ? 'checkmark' :
+              recognitionStatus === 'failed' ? 'close' :
                   'hourglass'
-                } 
-                size={20} 
-                color={colors.white} 
-                style={styles.buttonIcon}
-              />
-              <Text style={styles.scanButtonText}>
+            } 
+            size={20} 
+            color={colors.white} 
+            style={styles.buttonIcon}
+          />
+          <Text style={styles.scanButtonText}>
                 {recognitionStatus === 'success' ? 'Registered!' :
                  recognitionStatus === 'failed' ? 'Failed' :
                  'Processing...'}
-              </Text>
-            </TouchableOpacity>
+          </Text>
+        </TouchableOpacity>
           )}
         </View>
       </View>
@@ -675,14 +681,67 @@ const styles = StyleSheet.create({
   cameraContainer: {
     flex: 1,
     position: 'relative',
+    overflow: 'hidden',
+  },
+  cameraWrapper: {
+    flex: 1,
+    overflow: 'hidden',
+  },
+  cameraView: {
+    flex: 1,
+    transform: [{ scale: 1.3 }], // Moderate zoom to focus on face area
+  },
+  // Dark overlay mask to show only frame area
+  overlayMask: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1,
+  },
+  maskTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '25%',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+  },
+  maskMiddleRow: {
+    position: 'absolute',
+    top: '25%',
+    left: 0,
+    right: 0,
+    height: 300,
+    flexDirection: 'row',
+  },
+  maskLeft: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+  },
+  frameCutout: {
+    width: 280,
+    height: 300,
+    backgroundColor: 'transparent',
+  },
+  maskRight: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+  },
+  maskBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '40%',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'transparent',
     paddingHorizontal: 24,
-    paddingVertical: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
     alignItems: 'center',
     justifyContent: 'space-between',
+    zIndex: 2,
   },
   permissionContainer: {
     flex: 1,
@@ -746,12 +805,12 @@ const styles = StyleSheet.create({
   infoBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(60, 0, 86, 0.8)',
+    backgroundColor: 'rgba(60, 0, 86, 0.9)',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 60,
+    paddingVertical: 10,
+    borderRadius: 10,
     width: '100%',
+    marginBottom: 20,
   },
   infoBannerText: {
     fontSize: 14,
@@ -767,116 +826,80 @@ const styles = StyleSheet.create({
   },
   scanArea: {
     width: 280,
-    height: 280,
+    height: 300,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
     position: 'relative',
+    marginVertical: 20,
   },
   faceFrame: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
+    width: 220,
+    height: 280,
+    borderRadius: 110,
     borderWidth: 3,
     borderColor: colors.white,
-    borderStyle: 'dashed',
+    borderStyle: 'solid',
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'transparent',
   },
   faceFrameActive: {
     borderColor: colors.primary,
-    borderStyle: 'solid',
-    backgroundColor: 'rgba(60, 0, 86, 0.1)',
+    borderWidth: 4,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 20,
+    elevation: 15,
   },
   scanLine: {
     position: 'absolute',
-    left: 40,
-    right: 40,
+    left: 30,
+    right: 30,
     height: 3,
     backgroundColor: colors.primary,
-    opacity: 0.8,
+    borderRadius: 2,
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
+    shadowOpacity: 1,
     shadowRadius: 10,
   },
-  // Corner brackets
-  cornerTopLeft: {
-    position: 'absolute',
-    top: 40,
-    left: 40,
-    width: 30,
-    height: 30,
-    borderTopWidth: 4,
-    borderLeftWidth: 4,
-    borderColor: colors.white,
-    borderTopLeftRadius: 8,
-  },
-  cornerTopRight: {
-    position: 'absolute',
-    top: 40,
-    right: 40,
-    width: 30,
-    height: 30,
-    borderTopWidth: 4,
-    borderRightWidth: 4,
-    borderColor: colors.white,
-    borderTopRightRadius: 8,
-  },
-  cornerBottomLeft: {
-    position: 'absolute',
-    bottom: 40,
-    left: 40,
-    width: 30,
-    height: 30,
-    borderBottomWidth: 4,
-    borderLeftWidth: 4,
-    borderColor: colors.white,
-    borderBottomLeftRadius: 8,
-  },
-  cornerBottomRight: {
-    position: 'absolute',
-    bottom: 40,
-    right: 40,
-    width: 30,
-    height: 30,
-    borderBottomWidth: 4,
-    borderRightWidth: 4,
-    borderColor: colors.white,
-    borderBottomRightRadius: 8,
+  statusSection: {
+    width: '100%',
+    alignItems: 'center',
   },
   progressContainer: {
     width: '100%',
-    marginBottom: 24,
+    marginBottom: 16,
   },
   progressBarBackground: {
     width: '100%',
-    height: 6,
-    backgroundColor: colors.gray[200],
-    borderRadius: 3,
+    height: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 2,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
     backgroundColor: colors.primary,
-    borderRadius: 3,
+    borderRadius: 2,
   },
   progressText: {
     fontSize: 12,
     color: colors.text.secondary,
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: 6,
   },
   progressTextWhite: {
-    fontSize: 12,
+    fontSize: 13,
     color: colors.white,
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: 6,
+    fontWeight: '600',
   },
   instructionsContainer: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 20,
   },
   title: {
     fontSize: 24,
@@ -886,14 +909,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   titleWhite: {
-    fontSize: 24,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: '700',
     color: colors.white,
-    marginBottom: 8,
+    marginBottom: 6,
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    textShadowColor: 'rgba(0, 0, 0, 0.6)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   subtitle: {
     fontSize: 16,
@@ -902,35 +925,13 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   subtitleWhite: {
-    fontSize: 16,
-    color: colors.white,
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.9)',
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 20,
     textShadowColor: 'rgba(0, 0, 0, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
-  },
-  featuresContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 24,
-    marginBottom: 40,
-  },
-  featureItem: {
-    alignItems: 'center',
-  },
-  featureText: {
-    fontSize: 12,
-    color: colors.text.secondary,
-    marginTop: 4,
-  },
-  featureTextWhite: {
-    fontSize: 12,
-    color: colors.white,
-    marginTop: 4,
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
   scanButton: {
     flexDirection: 'row',
