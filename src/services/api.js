@@ -64,6 +64,12 @@ export const endpoints = {
   middleware: {
     authCode: '/middleware/auth_code',
     unlock: '/middleware/unlock',
+    regFace: '/middleware/reg_face',
+  },
+  
+  // Media endpoints
+  media: {
+    upload: '/medias/upload',
   },
   
   // Services endpoints
@@ -228,6 +234,58 @@ class ApiClient {
     return this.request('DELETE', url, options);
   }
 
+  // Upload file with multipart/form-data
+  async uploadFile(url, formData, options = {}) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.timeout);
+
+    try {
+      const requestHeaders = { ...this.headers };
+      // Remove Content-Type header to let browser set it with boundary for multipart/form-data
+      delete requestHeaders['Content-Type'];
+      
+      // Merge any additional headers from options
+      const headers = { ...requestHeaders, ...options.headers };
+
+      console.log('📤 File Upload Request:', {
+        method: 'POST',
+        url: `${this.baseURL}${url}`,
+        hasAuthToken: !!headers.Authorization,
+        formDataKeys: formData ? Object.keys(formData._parts || {}) : [],
+      });
+
+      const res = await fetch(`${this.baseURL}${url}`, {
+        method: 'POST',
+        headers,
+        body: formData,
+        signal: options.signal || controller.signal,
+      });
+
+      const contentType = res.headers.get('content-type') || '';
+      const isJson = contentType.includes('application/json');
+      const parsed = isJson ? await res.json() : await res.text();
+
+      console.log('📥 File Upload Response:', {
+        url: `${this.baseURL}${url}`,
+        status: res.status,
+        statusText: res.statusText,
+        ok: res.ok,
+        response: parsed,
+      });
+
+      if (!res.ok) {
+        const error = new Error(parsed?.message || parsed?.error || 'Upload failed');
+        error.status = res.status;
+        error.data = parsed;
+        throw error;
+      }
+
+      return parsed;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
   // Set authorization token
   setAuthToken(token) {
     this.headers.Authorization = `Bearer ${token}`;
@@ -368,6 +426,12 @@ export const apiService = {
   middleware: {
     getAuthCode: (data) => apiClient.post(endpoints.middleware.authCode, data),
     unlock: (data) => apiClient.post(endpoints.middleware.unlock, data),
+    regFace: (data) => apiClient.post(endpoints.middleware.regFace, data),
+  },
+
+  // Media services
+  media: {
+    upload: (formData) => apiClient.uploadFile(endpoints.media.upload, formData),
   },
 };
 

@@ -1,5 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import apiService from '../../services/api';
+import { imageSizeEnum, entityTypeEnum } from '../../constants/enums';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 // Initial state
 const initialState = {
@@ -76,18 +78,90 @@ export const uploadProfileImage = createAsyncThunk(
   'profile/uploadProfileImage',
   async (imageData, { rejectWithValue }) => {
     try {
-      // TODO: Replace with actual API call
-      // const response = await apiService.user.uploadImage(imageData);
-      // return response.data;
+      console.log('📤 Uploading profile image...');
       
-      // Mock implementation for now
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Resize image to medium size from enum on frontend
+      const targetSize = imageSizeEnum.medium; // '800x800' (user updated)
+      const [targetWidth, targetHeight] = targetSize.split('x').map(Number);
+      
+      console.log('🔄 Resizing profile image to', targetSize, 'on frontend...');
+      console.log('📐 Target dimensions from enum:', targetWidth, 'x', targetHeight);
+      
+      let resizedImage;
+      try {
+        resizedImage = await ImageManipulator.manipulateAsync(
+          imageData.uri,
+          [
+            { resize: { width: targetWidth, height: targetHeight } },
+          ],
+          {
+            compress: 0.8,
+            format: ImageManipulator.SaveFormat.JPEG, // Ensure JPG format
+          }
+        );
+        console.log('✅ Profile image resized:', resizedImage.width, 'x', resizedImage.height);
+      } catch (resizeError) {
+        console.error('❌ Error resizing profile image:', resizeError);
+        throw new Error(`Failed to resize image: ${resizeError?.message || 'Unknown error'}`);
+      }
+
+      // Create FormData for multipart/form-data
+      const formData = new FormData();
+      
+      // Get file name from URI
+      const filename = resizedImage.uri.split('/').pop() || 'avatar.jpg';
+      const fileExtension = 'jpg'; // Always JPG format
+      
+      // Add file to FormData
+      formData.append('file', {
+        uri: resizedImage.uri,
+        type: `image/jpeg`,
+        name: `avatar.${fileExtension}`,
+      });
+      
+      // Add source using entityTypeEnum (AVATAR for profile image)
+      formData.append('source', entityTypeEnum.AVATAR);
+      
+      console.log('📤 Uploading profile image with source:', entityTypeEnum.AVATAR);
+      
+      // Upload file using media service
+      const uploadResponse = await apiService.media.upload(formData);
+      console.log('📥 Profile image upload response:', uploadResponse);
+      
+      // Extract the image URL from response
+      let imageUrl = '';
+      if (typeof uploadResponse === 'string') {
+        imageUrl = uploadResponse;
+      } else if (uploadResponse?.data) {
+        if (typeof uploadResponse.data === 'string') {
+          imageUrl = uploadResponse.data;
+        } else {
+          imageUrl = uploadResponse.data?.imageUrl || 
+                   uploadResponse.data?.url || 
+                   uploadResponse.data?.file || 
+                   uploadResponse.data?.id || 
+                   '';
+        }
+      } else if (uploadResponse?.imageUrl || uploadResponse?.url || uploadResponse?.file || uploadResponse?.id) {
+        imageUrl = uploadResponse.imageUrl || 
+                  uploadResponse.url || 
+                  uploadResponse.file || 
+                  uploadResponse.id;
+      }
+
+      if (!imageUrl) {
+        throw new Error('Failed to get image URL from upload response');
+      }
+
+      console.log('✅ Profile image uploaded successfully:', imageUrl);
+      
       return {
-        profileImage: imageData.uri || imageData,
+        profileImage: imageUrl,
         updatedAt: new Date().toISOString(),
       };
     } catch (error) {
-      return rejectWithValue(error.message || 'Failed to upload image');
+      console.error('❌ Profile image upload error:', error);
+      return rejectWithValue(error?.message || 'Failed to upload image');
     }
   }
 );

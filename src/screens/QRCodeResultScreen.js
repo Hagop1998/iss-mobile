@@ -17,7 +17,7 @@ import { useShareQRCodeMutation } from '../services/qrApi';
 import { visitorIdentities, timePeriods, services, deliveryTimePeriods, friendsFamilyTimePeriods } from '../services/qrApi';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 
 const QRCodeResultScreen = ({ navigation, route }) => {
@@ -165,22 +165,26 @@ const QRCodeResultScreen = ({ navigation, route }) => {
         const fileName = `qr_code_${Date.now()}.jpg`;
         const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
         
-        // Ensure we have a proper data URL
-        let dataUrl = qrData.imageData;
-        if (!dataUrl.startsWith('data:')) {
-          dataUrl = `data:image/jpeg;base64,${qrData.imageData}`;
+        // Extract base64 data from data URL
+        let base64Data = qrData.imageData;
+        if (base64Data.includes(',')) {
+          base64Data = base64Data.split(',')[1];
         }
         
-        // Use downloadAsync to save the image from data URL
-        // This is the recommended way for expo-file-system v19+
-        console.log('💾 Downloading image from data URL to:', fileUri);
-        const downloadResult = await FileSystem.downloadAsync(dataUrl, fileUri);
-        
-        if (!downloadResult.uri) {
-          throw new Error('Failed to download image file');
+        // Write base64 data to file using legacy API
+        console.log('💾 Writing image to file:', fileUri);
+        try {
+          // Try with EncodingBase64 constant first
+          await FileSystem.writeAsStringAsync(fileUri, base64Data, {
+            encoding: FileSystem.EncodingBase64 || 'base64',
+          });
+        } catch (encodingError) {
+          // Fallback: try with string 'base64'
+          console.warn('⚠️ First encoding attempt failed, trying string:', encodingError);
+          await FileSystem.writeAsStringAsync(fileUri, base64Data, {
+            encoding: 'base64',
+          });
         }
-        
-        console.log('✅ Image downloaded successfully to:', downloadResult.uri);
         
         console.log('✅ QR code image saved to:', fileUri);
         

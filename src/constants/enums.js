@@ -65,3 +65,14 @@ export const MiddlewareNotifyTypeEnum = {
   CALLBACK: 'callback',
 };
 
+export const imageSizeEnum = {
+  small :'240x320',
+  medium : '640x480',
+  large : '1280x720'
+}
+
+export const entityTypeEnum = {
+  REG_FACE : 'regFace',
+  AVATAR : 'avatar',
+  Default : 'public'
+}
