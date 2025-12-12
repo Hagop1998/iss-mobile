@@ -273,10 +273,13 @@ const ProfileScreen = ({ navigation }) => {
       
       <TouchableOpacity 
         style={[styles.tab]}
-        onPress={() => setSelectedTab('QR')}
+        onPress={() => {
+          setSelectedTab('Family');
+          navigation.navigate('FamilyMembers');
+        }}
       >
-        <Ionicons name="qr-code" size={24} color={colors.gray[400]} />
-        <Text style={styles.tabText}>{t('home.qrCodes')}</Text>
+        <Ionicons name="people" size={24} color={colors.gray[400]} />
+        <Text style={styles.tabText}>{t('family.title')}</Text>
       </TouchableOpacity>
       
       <TouchableOpacity 

@@ -10,6 +10,8 @@ import {
   Alert,
   Modal,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,7 +25,7 @@ const FamilyMembersScreen = ({ navigation }) => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const { user } = useAuth();
-  
+
   const [familyMembers, setFamilyMembers] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -37,6 +39,7 @@ const FamilyMembersScreen = ({ navigation }) => {
   const [emailUsers, setEmailUsers] = useState([]);
   const [selectedEmailUser, setSelectedEmailUser] = useState(null);
   const [isSearchingEmail, setIsSearchingEmail] = useState(false);
+  const [selectedTab, setSelectedTab] = useState('Family');
 
   useEffect(() => {
     fetchFamilyMembers();
@@ -78,15 +81,15 @@ const FamilyMembersScreen = ({ navigation }) => {
     try {
       setIsLoading(true);
       console.log('📞 Calling /auth/status to get family members...');
-      
+
       // Call auth status endpoint to get user data including family members
       const response = await dispatch(checkAuthStatus()).unwrap();
       console.log('📋 Auth status response:', response);
-      
+
       // Extract family members from userSubscription.familyMembers
       const familyMembersData = response?.userSubscription?.familyMembers || [];
       console.log('👨‍👩‍👧‍👦 Family members found:', familyMembersData.length);
-      
+
       // Transform the data to include user info and role
       const transformedMembers = familyMembersData.map(member => ({
         id: member.id,
@@ -99,7 +102,7 @@ const FamilyMembersScreen = ({ navigation }) => {
         phone: member.user?.phone || '',
         status: member.role === 'owner' ? 'active' : 'active', // All are active
       }));
-      
+
       setFamilyMembers(transformedMembers);
     } catch (error) {
       console.error('Error fetching family members:', error);
@@ -113,7 +116,7 @@ const FamilyMembersScreen = ({ navigation }) => {
     try {
       const response = await apiService.user.getAllUsers();
       console.log('📋 All users response:', response);
-      
+
       // Handle different response structures
       let users = [];
       if (Array.isArray(response)) {
@@ -125,7 +128,7 @@ const FamilyMembersScreen = ({ navigation }) => {
       } else if (response?.users && Array.isArray(response.users)) {
         users = response.users;
       }
-      
+
       // Filter out current user
       if (Array.isArray(users)) {
         const filteredUsers = users.filter(u => u && u.id !== user.id);
@@ -152,7 +155,7 @@ const FamilyMembersScreen = ({ navigation }) => {
       // Call /users endpoint with phone query parameter
       const response = await apiService.user.getAllUsersWithParams({ phone });
       console.log('📞 Phone search response:', response);
-      
+
       // Handle response structure: { results: [...], pages: {...}, totalCount: ... }
       let results = [];
       if (response?.results && Array.isArray(response.results)) {
@@ -166,17 +169,17 @@ const FamilyMembersScreen = ({ navigation }) => {
       } else if (response?.users && Array.isArray(response.users)) {
         results = response.users;
       }
-      
+
       console.log('📋 All results from API:', results);
       console.log('👤 Current user ID:', user?.id);
       console.log('👤 Current user object:', user);
-      
+
       // Filter out current user, but allow super admins to be shown
       const filteredResults = results.filter(u => {
         if (!u) return false;
         // Don't filter out super admins - they should always be available to invite
         if (u.role === 'superAdmin' || u.role === 'admin') {
-          console.log('✅ Keeping admin/superAdmin user:', u.id, u.role);
+      
           return true;
         }
         // Filter out current user for regular users
@@ -186,10 +189,10 @@ const FamilyMembersScreen = ({ navigation }) => {
         }
         return true;
       });
-      
+
       console.log('✅ Filtered results:', filteredResults);
       setPhoneUsers(filteredResults);
-      
+
       // If only one user found, auto-select it
       if (filteredResults.length === 1) {
         handleSelectPhoneUser(filteredResults[0]);
@@ -217,7 +220,7 @@ const FamilyMembersScreen = ({ navigation }) => {
       // Call /users endpoint with search query parameter (for email)
       const response = await apiService.user.getAllUsersWithParams({ search: email });
       console.log('📧 Email search response:', response);
-      
+
       // Handle response structure: { results: [...], pages: {...}, totalCount: ... }
       let results = [];
       if (response?.results && Array.isArray(response.results)) {
@@ -231,10 +234,10 @@ const FamilyMembersScreen = ({ navigation }) => {
       } else if (response?.users && Array.isArray(response.users)) {
         results = response.users;
       }
-      
+
       console.log('📋 All results from API:', results);
       console.log('👤 Current user ID:', user?.id);
-      
+
       // Filter out current user, but allow super admins to be shown
       const filteredResults = results.filter(u => {
         if (!u) return false;
@@ -250,10 +253,10 @@ const FamilyMembersScreen = ({ navigation }) => {
         }
         return true;
       });
-      
+
       console.log('✅ Filtered results:', filteredResults);
       setEmailUsers(filteredResults);
-      
+
       // If only one user found, auto-select it
       if (filteredResults.length === 1) {
         handleSelectEmailUser(filteredResults[0]);
@@ -295,17 +298,17 @@ const FamilyMembersScreen = ({ navigation }) => {
     // If a user was selected from phone or email search, use their ID in the URL path
     // The endpoint is: POST /users/invite-family-member/{userId}
     // userId in path should be the selected user's ID (the one being invited)
-    
+
     const selectedUser = selectedPhoneUser || selectedEmailUser;
-    
+
     if (!selectedUser?.id) {
       Alert.alert(
-        t('family.error'), 
+        t('family.error'),
         t('family.selectUserFirst') || 'Please select a user from the list first'
       );
       return;
     }
-    
+
     console.log('📤 Inviting user:', {
       selectedUserId: selectedUser.id,
       selectedUserName: `${selectedUser.firstName} ${selectedUser.lastName}`,
@@ -320,7 +323,7 @@ const FamilyMembersScreen = ({ navigation }) => {
         email: inviteEmail || undefined,
         phone: invitePhone || undefined,
       });
-      
+
       Alert.alert(
         t('family.success'),
         t('family.inviteSuccess'),
@@ -366,7 +369,6 @@ const FamilyMembersScreen = ({ navigation }) => {
               console.log('🗑️ Removing family member with ID:', memberId);
               await apiService.user.removeFamilyMember(memberId);
               Alert.alert(t('family.success'), t('family.removeSuccess'));
-              // Refresh family members after removal
               fetchFamilyMembers();
             } catch (error) {
               console.error('Error removing family member:', error);
@@ -384,7 +386,7 @@ const FamilyMembersScreen = ({ navigation }) => {
     const displayName = member.firstName && member.lastName
       ? `${member.firstName} ${member.lastName}`
       : member.firstName || member.lastName || member.email || 'User';
-    
+
     return (
       <View key={member.id} style={styles.memberCard}>
         <View style={styles.memberInfo}>
@@ -422,6 +424,59 @@ const FamilyMembersScreen = ({ navigation }) => {
     );
   };
 
+  const renderTabBar = () => (
+    <View style={styles.tabBar}>
+      <TouchableOpacity
+        style={[styles.tab]}
+        onPress={() => {
+          setSelectedTab('Home');
+          navigation.navigate('Home');
+        }}
+      >
+        <Ionicons name="home" size={24} color={colors.gray[400]} />
+        <Text style={styles.tabText}>{t('home.title')}</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.tab, selectedTab === 'Family' && styles.activeTab]}
+        onPress={() => setSelectedTab('Family')}
+      >
+        <Ionicons
+          name="people"
+          size={24}
+          color={selectedTab === 'Family' ? colors.white : colors.gray[400]}
+        />
+        <Text style={[styles.tabText, selectedTab === 'Family' && styles.activeTabText]}>
+          {t('family.title')}
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.tab]}
+        onPress={() => {
+          setSelectedTab('Payment');
+          navigation.navigate('PaymentMethods');
+        }}
+      >
+        <Ionicons name="card" size={24} color={colors.gray[400]} />
+        <Text style={styles.tabText}>{t('profile.payment')}</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.tab]}
+        onPress={() => {
+          setSelectedTab('Profile');
+          navigation.navigate('Profile');
+        }}
+      >
+        <View style={styles.profileIcon}>
+          <Ionicons name="person" size={20} color={colors.white} />
+        </View>
+        <Text style={styles.tabText}>{t('home.profile')}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   const renderInviteModal = () => (
     <Modal
       visible={showInviteModal}
@@ -430,156 +485,164 @@ const FamilyMembersScreen = ({ navigation }) => {
       onRequestClose={() => setShowInviteModal(false)}
     >
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{t('family.inviteMember')}</Text>
-            <TouchableOpacity onPress={() => {
-              setShowInviteModal(false);
-              setPhoneUsers([]);
-              setSelectedPhoneUser(null);
-              setEmailUsers([]);
-              setSelectedEmailUser(null);
-            }}>
-              <Ionicons name="close" size={24} color={colors.text.primary} />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.modalBody}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>{t('family.email')}</Text>
-              <View style={styles.phoneInputContainer}>
-                <TextInput
-                  style={styles.input}
-                  placeholder={t('family.emailPlaceholder')}
-                  value={inviteEmail}
-                  onChangeText={setInviteEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-                {isSearchingEmail && (
-                  <ActivityIndicator size="small" color={colors.primary} style={styles.phoneSearchLoader} />
-                )}
-              </View>
-              
-              {emailUsers.length > 0 && (
-                <View style={styles.phoneUsersList}>
-                  <Text style={styles.phoneUsersTitle}>
-                    {emailUsers.length === 1 
-                      ? t('family.userFound') 
-                      : `${emailUsers.length} ${t('family.usersFound')}`}
-                  </Text>
-                  {emailUsers.map((emailUser) => (
-                    <TouchableOpacity
-                      key={emailUser.id}
-                      style={[
-                        styles.phoneUserItem,
-                        selectedEmailUser?.id === emailUser.id && styles.phoneUserItemSelected
-                      ]}
-                      onPress={() => handleSelectEmailUser(emailUser)}
-                    >
-                      <View style={styles.phoneUserItemContent}>
-                        <View style={styles.phoneUserAvatar}>
-                          <Ionicons name="person" size={20} color={colors.primary} />
-                        </View>
-                        <View style={styles.phoneUserDetails}>
-                          <Text style={styles.phoneUserName}>
-                            {emailUser.firstName && emailUser.lastName
-                              ? `${emailUser.firstName} ${emailUser.lastName}`
-                              : emailUser.firstName || emailUser.lastName || 'User'}
-                          </Text>
-                          {emailUser.email && (
-                            <Text style={styles.phoneUserEmail}>{emailUser.email}</Text>
-                          )}
-                        </View>
-                        {selectedEmailUser?.id === emailUser.id && (
-                          <Ionicons name="checkmark-circle" size={20} color={colors.green[500]} />
-                        )}
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardAvoidingView}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{t('family.inviteMember')}</Text>
+              <TouchableOpacity onPress={() => {
+                setShowInviteModal(false);
+                setPhoneUsers([]);
+                setSelectedPhoneUser(null);
+                setEmailUsers([]);
+                setSelectedEmailUser(null);
+              }}>
+                <Ionicons name="close" size={24} color={colors.text.primary} />
+              </TouchableOpacity>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>{t('family.phone')}</Text>
-              <View style={styles.phoneInputContainer}>
-                <TextInput
-                  style={styles.input}
-                  placeholder={t('family.phonePlaceholder')}
-                  value={invitePhone}
-                  onChangeText={setInvitePhone}
-                  keyboardType="phone-pad"
-                />
-                {isSearchingPhone && (
-                  <ActivityIndicator size="small" color={colors.primary} style={styles.phoneSearchLoader} />
-                )}
-              </View>
-              
-              {phoneUsers.length > 0 && (
-                <View style={styles.phoneUsersList}>
-                  <Text style={styles.phoneUsersTitle}>
-                    {phoneUsers.length === 1 
-                      ? t('family.userFound') 
-                      : `${phoneUsers.length} ${t('family.usersFound')}`}
-                  </Text>
-                  {phoneUsers.map((phoneUser) => (
-                    <TouchableOpacity
-                      key={phoneUser.id}
-                      style={[
-                        styles.phoneUserItem,
-                        selectedPhoneUser?.id === phoneUser.id && styles.phoneUserItemSelected
-                      ]}
-                      onPress={() => handleSelectPhoneUser(phoneUser)}
-                    >
-                      <View style={styles.phoneUserItemContent}>
-                        <View style={styles.phoneUserAvatar}>
-                          <Ionicons name="person" size={20} color={colors.primary} />
-                        </View>
-                        <View style={styles.phoneUserDetails}>
-                          <Text style={styles.phoneUserName}>
-                            {phoneUser.firstName && phoneUser.lastName
-                              ? `${phoneUser.firstName} ${phoneUser.lastName}`
-                              : phoneUser.firstName || phoneUser.lastName || 'User'}
-                          </Text>
-                          {phoneUser.email && (
-                            <Text style={styles.phoneUserEmail}>{phoneUser.email}</Text>
+            <ScrollView
+              style={styles.modalBody}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>{t('family.email')}</Text>
+                <View style={styles.phoneInputContainer}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder={t('family.emailPlaceholder')}
+                    value={inviteEmail}
+                    onChangeText={setInviteEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                  {isSearchingEmail && (
+                    <ActivityIndicator size="small" color={colors.primary} style={styles.phoneSearchLoader} />
+                  )}
+                </View>
+
+                {emailUsers.length > 0 && (
+                  <View style={styles.phoneUsersList}>
+                    <Text style={styles.phoneUsersTitle}>
+                      {emailUsers.length === 1
+                        ? t('family.userFound')
+                        : `${emailUsers.length} ${t('family.usersFound')}`}
+                    </Text>
+                    {emailUsers.map((emailUser) => (
+                      <TouchableOpacity
+                        key={emailUser.id}
+                        style={[
+                          styles.phoneUserItem,
+                          selectedEmailUser?.id === emailUser.id && styles.phoneUserItemSelected
+                        ]}
+                        onPress={() => handleSelectEmailUser(emailUser)}
+                      >
+                        <View style={styles.phoneUserItemContent}>
+                          <View style={styles.phoneUserAvatar}>
+                            <Ionicons name="person" size={20} color={colors.primary} />
+                          </View>
+                          <View style={styles.phoneUserDetails}>
+                            <Text style={styles.phoneUserName}>
+                              {emailUser.firstName && emailUser.lastName
+                                ? `${emailUser.firstName} ${emailUser.lastName}`
+                                : emailUser.firstName || emailUser.lastName || 'User'}
+                            </Text>
+                            {emailUser.email && (
+                              <Text style={styles.phoneUserEmail}>{emailUser.email}</Text>
+                            )}
+                          </View>
+                          {selectedEmailUser?.id === emailUser.id && (
+                            <Ionicons name="checkmark-circle" size={20} color={colors.green[500]} />
                           )}
                         </View>
-                        {selectedPhoneUser?.id === phoneUser.id && (
-                          <Ionicons name="checkmark-circle" size={20} color={colors.green[500]} />
-                        )}
-                      </View>
-                    </TouchableOpacity>
-                  ))}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>{t('family.phone')}</Text>
+                <View style={styles.phoneInputContainer}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder={t('family.phonePlaceholder')}
+                    value={invitePhone}
+                    onChangeText={setInvitePhone}
+                    keyboardType="phone-pad"
+                  />
+                  {isSearchingPhone && (
+                    <ActivityIndicator size="small" color={colors.primary} style={styles.phoneSearchLoader} />
+                  )}
                 </View>
-              )}
+
+                {phoneUsers.length > 0 && (
+                  <View style={styles.phoneUsersList}>
+                    <Text style={styles.phoneUsersTitle}>
+                      {phoneUsers.length === 1
+                        ? t('family.userFound')
+                        : `${phoneUsers.length} ${t('family.usersFound')}`}
+                    </Text>
+                    {phoneUsers.map((phoneUser) => (
+                      <TouchableOpacity
+                        key={phoneUser.id}
+                        style={[
+                          styles.phoneUserItem,
+                          selectedPhoneUser?.id === phoneUser.id && styles.phoneUserItemSelected
+                        ]}
+                        onPress={() => handleSelectPhoneUser(phoneUser)}
+                      >
+                        <View style={styles.phoneUserItemContent}>
+                          <View style={styles.phoneUserAvatar}>
+                            <Ionicons name="person" size={20} color={colors.primary} />
+                          </View>
+                          <View style={styles.phoneUserDetails}>
+                            <Text style={styles.phoneUserName}>
+                              {phoneUser.firstName && phoneUser.lastName
+                                ? `${phoneUser.firstName} ${phoneUser.lastName}`
+                                : phoneUser.firstName || phoneUser.lastName || 'User'}
+                            </Text>
+                            {phoneUser.email && (
+                              <Text style={styles.phoneUserEmail}>{phoneUser.email}</Text>
+                            )}
+                          </View>
+                          {selectedPhoneUser?.id === phoneUser.id && (
+                            <Ionicons name="checkmark-circle" size={20} color={colors.green[500]} />
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+              <Text style={styles.helpText}>{t('family.inviteHelp')}</Text>
+            </ScrollView>
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowInviteModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.inviteButton, isInviting && styles.disabledButton]}
+                onPress={handleInvite}
+                disabled={isInviting}
+              >
+                {isInviting ? (
+                  <ActivityIndicator color={colors.white} />
+                ) : (
+                  <Text style={styles.inviteButtonText}>{t('family.sendInvite')}</Text>
+                )}
+              </TouchableOpacity>
             </View>
-
-            <Text style={styles.helpText}>{t('family.inviteHelp')}</Text>
-          </ScrollView>
-
-          <View style={styles.modalFooter}>
-            <TouchableOpacity
-              style={[styles.modalButton, styles.cancelButton]}
-              onPress={() => setShowInviteModal(false)}
-            >
-              <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modalButton, styles.inviteButton, isInviting && styles.disabledButton]}
-              onPress={handleInvite}
-              disabled={isInviting}
-            >
-              {isInviting ? (
-                <ActivityIndicator color={colors.white} />
-              ) : (
-                <Text style={styles.inviteButtonText}>{t('family.sendInvite')}</Text>
-              )}
-            </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -587,9 +650,7 @@ const FamilyMembersScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
-        </TouchableOpacity>
+        <View style={styles.placeholder} />
         <Text style={styles.headerTitle}>{t('family.title')}</Text>
         <View style={styles.placeholder} />
       </View>
@@ -643,6 +704,8 @@ const FamilyMembersScreen = ({ navigation }) => {
         )}
       </ScrollView>
 
+      {renderTabBar()}
+
       {renderInviteModal()}
     </SafeAreaView>
   );
@@ -662,9 +725,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderBottomWidth: 1,
     borderBottomColor: colors.gray[200],
-  },
-  backButton: {
-    padding: 4,
   },
   headerTitle: {
     fontSize: 20,
@@ -837,9 +897,54 @@ const styles = StyleSheet.create({
   removeButton: {
     padding: 4,
   },
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: colors.white,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingBottom: 20,
+    borderTopWidth: 1,
+    borderTopColor: colors.gray[200],
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+  },
+  activeTab: {
+    backgroundColor: colors.primary,
+  },
+  tabText: {
+    fontSize: 12,
+    color: colors.gray[400],
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  activeTabText: {
+    color: colors.white,
+  },
+  profileIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.orange[500],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  keyboardAvoidingView: {
+    flex: 1,
     justifyContent: 'flex-end',
   },
   modalContent: {

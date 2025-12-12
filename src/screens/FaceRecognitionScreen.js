@@ -8,6 +8,7 @@ import {
   Alert,
   Animated,
   Platform,
+  StatusBar,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
@@ -453,14 +454,17 @@ const FaceRecognitionScreen = ({ navigation, route }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.white} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitleWhite}>Face Recognition</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" translucent={false} backgroundColor="rgba(0, 0, 0, 0.5)" />
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.white} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitleWhite}>Face Recognition</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+      </SafeAreaView>
 
       {/* Camera View */}
       <View style={styles.cameraContainer}>
@@ -639,7 +643,7 @@ const FaceRecognitionScreen = ({ navigation, route }) => {
           )}
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -648,17 +652,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.black,
   },
+  safeArea: {
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    zIndex: 10,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 24,
     paddingVertical: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
+    backgroundColor: 'transparent',
   },
   backButton: {
     marginRight: 16,
@@ -730,7 +733,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: '40%',
+    height: '36%',
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
   },
   overlay: {
@@ -809,7 +812,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 10,
-    width: '100%',
+    width: '50%',
     marginBottom: 20,
   },
   infoBannerText: {
@@ -826,8 +829,8 @@ const styles = StyleSheet.create({
   },
   scanArea: {
     width: 280,
-    height: 300,
-    justifyContent: 'center',
+    height: 350,
+    justifyContent: 'flex-start',
     alignItems: 'center',
     position: 'relative',
     marginVertical: 20,
@@ -842,6 +845,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'transparent',
+    position: 'absolute',
+    top: 12, 
+    left: '50%',
+    marginLeft: -110, 
   },
   faceFrameActive: {
     borderColor: colors.primary,
