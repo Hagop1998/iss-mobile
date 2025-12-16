@@ -52,6 +52,12 @@ const resources = {
           failed: 'Verification failed. Please try again.',
         },
       },
+      pendingVerification: {
+        title: 'Waiting for Approval',
+        message: 'Your account is pending administrator approval.',
+        subMessage: 'You will be able to access the app once an administrator verifies your account.',
+        checking: 'Checking verification status...',
+      },
       home: {
         title: 'Home',
         location: '6 Vratsakan st., ap XX',
@@ -385,6 +391,12 @@ const resources = {
           failed: 'Ստուգումը ձախողվեց: Խնդրում ենք նորից փորձել:',
         },
       },
+      pendingVerification: {
+        title: 'Սպասում ենք հաստատման',
+        message: 'Ձեր հաշիվը սպասում է ադմինիստրատորի հաստատման:',
+        subMessage: 'Դուք կկարողանաք օգտվել հավելվածից ադմինիստրատորի կողմից ձեր հաշվի ստուգումից հետո:',
+        checking: 'Ստուգվում է վերահսկիչի կարգավիճակը...',
+      },
       home: {
         title: 'Գլխավոր',
         location: '6 Վրացական փող., բն. XX',
@@ -717,6 +729,12 @@ const resources = {
           invalid: 'Неверный код проверки. Попробуйте еще раз.',
           failed: 'Проверка не удалась. Попробуйте еще раз.',
         },
+      },
+      pendingVerification: {
+        title: 'Ожидание подтверждения',
+        message: 'Ваш аккаунт ожидает подтверждения администратором.',
+        subMessage: 'Вы сможете получить доступ к приложению после того, как администратор проверит ваш аккаунт.',
+        checking: 'Проверка статуса верификации...',
       },
       home: {
         title: 'Главная',

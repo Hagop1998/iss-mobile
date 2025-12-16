@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   SafeAreaView,
   TouchableOpacity,
@@ -13,11 +12,14 @@ import {
   Image,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import ServiceBenefitsModal from '../components/ServiceBenefitsModal';
+import TabBar from '../components/TabBar';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { logoutUser } from '../store/slices/authSlice';
+import { logoutUser, checkAuthStatus } from '../store/slices/authSlice';
+import { homeScreenStyles as styles } from '../styles/HomeScreen.styles';
 
 // Import images
 const smartLockerIcon = require('../../assets/smart_locker.png');
@@ -38,7 +40,7 @@ const HomeScreen = ({ navigation, route }) => {
   const dispatch = useAppDispatch();
   
   // Get user from Redux state
-  const { user } = useAppSelector(state => state.auth);
+  const { user, isAuthenticated, isLoading } = useAppSelector(state => state.auth);
   
   const [selectedTab, setSelectedTab] = useState('Home');
   const [showBenefitsModal, setShowBenefitsModal] = useState(false);
@@ -47,6 +49,65 @@ const HomeScreen = ({ navigation, route }) => {
   const [addressSearchQuery, setAddressSearchQuery] = useState('');
   const [filteredAddresses, setFilteredAddresses] = useState(MOCK_ADDRESSES);
   const [selectedAddress, setSelectedAddress] = useState(MOCK_ADDRESSES[0]); // Default to first address
+
+  // Check verification status whenever screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      const checkVerification = async () => {
+        if (isAuthenticated && user?.token) {
+          // Refresh auth status to get latest isVerified value
+          try {
+            await dispatch(checkAuthStatus()).unwrap();
+          } catch (error) {
+            // Silently handle errors - don't spam console
+            // The verification check will use the current user state anyway
+            const errorMessage = error?.message || String(error);
+            if (!errorMessage.includes('Internal server error')) {
+              console.warn('⚠️ Could not refresh auth status:', errorMessage);
+            }
+          }
+        }
+      };
+      
+      checkVerification();
+    }, [dispatch, isAuthenticated, user?.token])
+  );
+
+  // Check if user is verified, redirect to PendingVerification if not
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      // Check isVerified explicitly - handle both boolean false and string "false"
+      const isVerified = user.isVerified === true || user.isVerified === 'true';
+      
+      console.log('🔍 HomeScreen - Verification Check:', {
+        userId: user.id,
+        email: user.email,
+        isVerified: user.isVerified,
+        isVerifiedType: typeof user.isVerified,
+        verified: isVerified,
+      });
+      
+      if (!isVerified) {
+        console.log('❌ User is not verified, redirecting to PendingVerification');
+        // Immediately redirect if not verified
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'PendingVerification' }],
+        });
+      } else {
+        console.log('✅ User is verified, allowing access to Home');
+      }
+    }
+  }, [isAuthenticated, user, user?.isVerified, navigation]);
+
+  // Don't render content if user is not verified
+  if (isAuthenticated && user) {
+    const isVerified = user.isVerified === true || user.isVerified === 'true';
+    if (!isVerified) {
+      console.log('⏳ Blocking HomeScreen render - user not verified');
+      return null; // Return null while redirecting
+    }
+  }
 
   // Update selected address when user data changes
   useEffect(() => {
@@ -206,58 +267,6 @@ const HomeScreen = ({ navigation, route }) => {
     </TouchableOpacity>
   );
 
-  const renderTabBar = () => (
-    <View style={styles.tabBar}>
-      <TouchableOpacity 
-        style={[styles.tab, selectedTab === 'Home' && styles.activeTab]}
-        onPress={() => setSelectedTab('Home')}
-      >
-        <Ionicons 
-          name="home" 
-          size={24} 
-          color={selectedTab === 'Home' ? colors.white : colors.gray[400]} 
-        />
-        <Text style={[styles.tabText, selectedTab === 'Home' && styles.activeTabText]}>
-          {t('home.title')}
-        </Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={[styles.tab]}
-        onPress={() => {
-          setSelectedTab('Family');
-          navigation.navigate('FamilyMembers');
-        }}
-      >
-        <Ionicons name="people" size={24} color={colors.gray[400]} />
-        <Text style={styles.tabText}>{t('family.title')}</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={[styles.tab]}
-        onPress={() => {
-          setSelectedTab('Services');
-          navigation.navigate('Subscriptions');
-        }}
-      >
-        <Ionicons name="shield-checkmark" size={24} color={colors.gray[400]} />
-        <Text style={styles.tabText}>{t('home.services')}</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={[styles.tab]}
-        onPress={() => {
-          setSelectedTab('Profile');
-          navigation.navigate('Profile');
-        }}
-      >
-        <View style={styles.profileIcon}>
-          <Ionicons name="person" size={20} color={colors.white} />
-        </View>
-        <Text style={styles.tabText}>{t('home.profile')}</Text>
-      </TouchableOpacity>
-    </View>
-  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -282,7 +291,7 @@ const HomeScreen = ({ navigation, route }) => {
         </View>
       </ScrollView>
 
-      {renderTabBar()}
+      <TabBar activeTab={selectedTab} onTabPress={setSelectedTab} navigation={navigation} />
 
       <ServiceBenefitsModal
         visible={showBenefitsModal}
@@ -372,247 +381,5 @@ const HomeScreen = ({ navigation, route }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.gray[50], // Light grey background
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 16,
-    backgroundColor: colors.gray[50],
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.text.primary,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-  },
-  locationCard: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  locationHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  locationInfo: {
-    flex: 1,
-    marginLeft: 16,
-  },
-  locationAddress: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text.primary,
-    marginBottom: 6,
-  },
-  locationId: {
-    fontSize: 14,
-    color: colors.text.secondary,
-  },
-  featuresContainer: {
-    marginTop: 8,
-    paddingBottom: 20,
-  },
-  featureCard: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  featureContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  featureIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.gray[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-    overflow: 'hidden',
-  },
-  featureIconImage: {
-    width: 40,
-    height: 40,
-  },
-  featureText: {
-    flex: 1,
-  },
-  featureTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text.primary,
-    marginBottom: 4,
-  },
-  featureSubtitle: {
-    fontSize: 14,
-    color: colors.text.secondary,
-  },
-  comingSoonBadge: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  comingSoonText: {
-    fontSize: 12,
-    color: colors.white,
-    fontWeight: '500',
-  },
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: colors.white,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingBottom: 20,
-    borderTopWidth: 1,
-    borderTopColor: colors.gray[200],
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-  },
-  activeTab: {
-    backgroundColor: colors.primary,
-  },
-  tabText: {
-    fontSize: 12,
-    color: colors.gray[400],
-    marginTop: 4,
-    fontWeight: '500',
-  },
-  activeTabText: {
-    color: colors.white,
-  },
-  profileIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.orange[500],
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  // Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: colors.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '80%',
-    paddingBottom: 20,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray[200],
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: colors.text.primary,
-  },
-  // Search Styles
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.gray[100],
-    borderRadius: 12,
-    margin: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: colors.text.primary,
-  },
-  // Address List Styles
-  addressItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray[100],
-  },
-  addressItemSelected: {
-    backgroundColor: colors.primary + '10', // 10% opacity
-  },
-  addressItemText: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  addressItemTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: colors.text.primary,
-    marginBottom: 4,
-  },
-  addressItemTitleSelected: {
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  addressItemSubtitle: {
-    fontSize: 14,
-    color: colors.text.secondary,
-  },
-  // Empty List Styles
-  emptyListContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-  },
-  emptyListText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: colors.text.secondary,
-    marginTop: 16,
-  },
-  emptyListSubtext: {
-    fontSize: 14,
-    color: colors.gray[400],
-    marginTop: 8,
-  },
-});
 
 export default HomeScreen;

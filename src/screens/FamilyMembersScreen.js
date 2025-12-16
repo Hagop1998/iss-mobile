@@ -6,7 +6,6 @@ import {
   ScrollView,
   SafeAreaView,
   TouchableOpacity,
-  TextInput,
   Alert,
   Modal,
   ActivityIndicator,
@@ -16,10 +15,14 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { useAppDispatch } from '../store/hooks';
 import { useAuth } from '../hooks/useAuth';
-import { apiClient, apiService } from '../services/api';
+import { apiService } from '../services/api';
 import { checkAuthStatus } from '../store/slices/authSlice';
+import { parseApiResponse, filterUsers, getUserDisplayName } from '../utils/userHelpers';
+import UserSearchInput from '../components/UserSearchInput';
+import UserSearchResults from '../components/UserSearchResults';
+import TabBar from '../components/TabBar';
 
 const FamilyMembersScreen = ({ navigation }) => {
   const { t } = useTranslation();
@@ -32,7 +35,6 @@ const FamilyMembersScreen = ({ navigation }) => {
   const [inviteEmail, setInviteEmail] = useState('');
   const [invitePhone, setInvitePhone] = useState('');
   const [isInviting, setIsInviting] = useState(false);
-  const [allUsers, setAllUsers] = useState([]);
   const [phoneUsers, setPhoneUsers] = useState([]);
   const [selectedPhoneUser, setSelectedPhoneUser] = useState(null);
   const [isSearchingPhone, setIsSearchingPhone] = useState(false);
@@ -45,11 +47,6 @@ const FamilyMembersScreen = ({ navigation }) => {
     fetchFamilyMembers();
   }, []);
 
-  useEffect(() => {
-    if (showInviteModal) {
-      fetchAllUsers();
-    }
-  }, [showInviteModal]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -59,7 +56,7 @@ const FamilyMembersScreen = ({ navigation }) => {
         setEmailUsers([]);
         setSelectedEmailUser(null);
       }
-    }, 500); // Debounce email search by 500ms
+    }, 500);
 
     return () => clearTimeout(timeoutId);
   }, [inviteEmail]);
@@ -72,7 +69,7 @@ const FamilyMembersScreen = ({ navigation }) => {
         setPhoneUsers([]);
         setSelectedPhoneUser(null);
       }
-    }, 500); // Debounce phone search by 500ms
+    }, 500);
 
     return () => clearTimeout(timeoutId);
   }, [invitePhone]);
@@ -80,208 +77,103 @@ const FamilyMembersScreen = ({ navigation }) => {
   const fetchFamilyMembers = async () => {
     try {
       setIsLoading(true);
-      console.log('📞 Calling /auth/status to get family members...');
-
-      // Call auth status endpoint to get user data including family members
       const response = await dispatch(checkAuthStatus()).unwrap();
-      console.log('📋 Auth status response:', response);
-
-      // Extract family members from userSubscription.familyMembers
       const familyMembersData = response?.userSubscription?.familyMembers || [];
-      console.log('👨‍👩‍👧‍👦 Family members found:', familyMembersData.length);
 
-      // Transform the data to include user info and role
       const transformedMembers = familyMembersData.map(member => ({
         id: member.id,
         userId: member.userId,
-        role: member.role, // 'owner' or 'member'
+        role: member.role,
         invitedAt: member.invitedAt,
         firstName: member.user?.firstName || '',
         lastName: member.user?.lastName || '',
         email: member.user?.email || '',
         phone: member.user?.phone || '',
-        status: member.role === 'owner' ? 'active' : 'active', // All are active
+        status: 'active',
       }));
 
       setFamilyMembers(transformedMembers);
     } catch (error) {
-      console.error('Error fetching family members:', error);
       setFamilyMembers([]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const fetchAllUsers = async () => {
-    try {
-      const response = await apiService.user.getAllUsers();
-      console.log('📋 All users response:', response);
+  const searchUsers = async (searchType, value, setUsers, setSelectedUser, setIsSearching, handleSelect) => {
+    const minLength = searchType === 'phone' ? 3 : 3;
+    const isValidEmail = searchType === 'email' && value.includes('@');
 
-      // Handle different response structures
-      let users = [];
-      if (Array.isArray(response)) {
-        users = response;
-      } else if (response?.data && Array.isArray(response.data)) {
-        users = response.data;
-      } else if (response?.data?.users && Array.isArray(response.data.users)) {
-        users = response.data.users;
-      } else if (response?.users && Array.isArray(response.users)) {
-        users = response.users;
-      }
-
-      // Filter out current user
-      if (Array.isArray(users)) {
-        const filteredUsers = users.filter(u => u && u.id !== user.id);
-        setAllUsers(filteredUsers);
-      } else {
-        console.warn('⚠️ Users data is not an array:', users);
-        setAllUsers([]);
-      }
-    } catch (error) {
-      console.error('Error fetching all users:', error);
-      setAllUsers([]);
-    }
-  };
-
-  const searchUserByPhone = async (phone) => {
-    if (!phone || phone.length < 3) {
-      setPhoneUsers([]);
-      setSelectedPhoneUser(null);
+    if (!value || value.length < minLength || (searchType === 'email' && !isValidEmail)) {
+      setUsers([]);
+      setSelectedUser(null);
       return;
     }
 
     try {
-      setIsSearchingPhone(true);
-      // Call /users endpoint with phone query parameter
-      const response = await apiService.user.getAllUsersWithParams({ phone });
-      console.log('📞 Phone search response:', response);
+      setIsSearching(true);
+      const response = await apiService.user.getAllUsersWithParams(
+        searchType === 'phone' ? { phone: value } : { search: value }
+      );
+      const results = parseApiResponse(response);
+      const filteredResults = filterUsers(results, user?.id);
+      setUsers(filteredResults);
 
-      // Handle response structure: { results: [...], pages: {...}, totalCount: ... }
-      let results = [];
-      if (response?.results && Array.isArray(response.results)) {
-        results = response.results;
-      } else if (Array.isArray(response)) {
-        results = response;
-      } else if (response?.data && Array.isArray(response.data)) {
-        results = response.data;
-      } else if (response?.data?.users && Array.isArray(response.data.users)) {
-        results = response.data.users;
-      } else if (response?.users && Array.isArray(response.users)) {
-        results = response.users;
-      }
-
-      console.log('📋 All results from API:', results);
-      console.log('👤 Current user ID:', user?.id);
-      console.log('👤 Current user object:', user);
-
-      // Filter out current user, but allow super admins to be shown
-      const filteredResults = results.filter(u => {
-        if (!u) return false;
-        // Don't filter out super admins - they should always be available to invite
-        if (u.role === 'superAdmin' || u.role === 'admin') {
-      
-          return true;
-        }
-        // Filter out current user for regular users
-        if (u.id === user?.id) {
-          console.log('⚠️ Filtering out current user:', u.id);
-          return false;
-        }
-        return true;
-      });
-
-      console.log('✅ Filtered results:', filteredResults);
-      setPhoneUsers(filteredResults);
-
-      // If only one user found, auto-select it
       if (filteredResults.length === 1) {
-        handleSelectPhoneUser(filteredResults[0]);
+        handleSelect(filteredResults[0]);
       } else {
-        setSelectedPhoneUser(null);
+        setSelectedUser(null);
       }
     } catch (error) {
-      console.error('Error searching user by phone:', error);
-      setPhoneUsers([]);
+      setUsers([]);
+      setSelectedUser(null);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const searchUserByPhone = (phone) => {
+    searchUsers(
+      'phone',
+      phone,
+      setPhoneUsers,
+      setSelectedPhoneUser,
+      setIsSearchingPhone,
+      handleSelectUser
+    );
+  };
+
+  const searchUserByEmail = (email) => {
+    searchUsers(
+      'email',
+      email,
+      setEmailUsers,
+      setSelectedEmailUser,
+      setIsSearchingEmail,
+      handleSelectUser
+    );
+  };
+
+  const handleSelectUser = (userToSelect) => {
+    if (userToSelect.email) {
+      setSelectedEmailUser(userToSelect);
       setSelectedPhoneUser(null);
-    } finally {
-      setIsSearchingPhone(false);
-    }
-  };
-
-  const searchUserByEmail = async (email) => {
-    if (!email || !email.includes('@') || email.length < 3) {
-      setEmailUsers([]);
+      setInviteEmail(userToSelect.email);
+    } else {
+      setSelectedPhoneUser(userToSelect);
       setSelectedEmailUser(null);
-      return;
     }
-
-    try {
-      setIsSearchingEmail(true);
-      // Call /users endpoint with search query parameter (for email)
-      const response = await apiService.user.getAllUsersWithParams({ search: email });
-      console.log('📧 Email search response:', response);
-
-      // Handle response structure: { results: [...], pages: {...}, totalCount: ... }
-      let results = [];
-      if (response?.results && Array.isArray(response.results)) {
-        results = response.results;
-      } else if (Array.isArray(response)) {
-        results = response;
-      } else if (response?.data && Array.isArray(response.data)) {
-        results = response.data;
-      } else if (response?.data?.users && Array.isArray(response.data.users)) {
-        results = response.data.users;
-      } else if (response?.users && Array.isArray(response.users)) {
-        results = response.users;
-      }
-
-      console.log('📋 All results from API:', results);
-      console.log('👤 Current user ID:', user?.id);
-
-      // Filter out current user, but allow super admins to be shown
-      const filteredResults = results.filter(u => {
-        if (!u) return false;
-        // Don't filter out super admins - they should always be available to invite
-        if (u.role === 'superAdmin' || u.role === 'admin') {
-          console.log('✅ Keeping admin/superAdmin user:', u.id, u.role);
-          return true;
-        }
-        // Filter out current user for regular users
-        if (u.id === user?.id) {
-          console.log('⚠️ Filtering out current user:', u.id);
-          return false;
-        }
-        return true;
-      });
-
-      console.log('✅ Filtered results:', filteredResults);
-      setEmailUsers(filteredResults);
-
-      // If only one user found, auto-select it
-      if (filteredResults.length === 1) {
-        handleSelectEmailUser(filteredResults[0]);
-      } else {
-        setSelectedEmailUser(null);
-      }
-    } catch (error) {
-      console.error('Error searching user by email:', error);
-      setEmailUsers([]);
-      setSelectedEmailUser(null);
-    } finally {
-      setIsSearchingEmail(false);
-    }
-  };
-
-  const handleSelectPhoneUser = (userToSelect) => {
-    setSelectedPhoneUser(userToSelect);
-    setInviteEmail(userToSelect.email || '');
     setInvitePhone(userToSelect.phone || '');
   };
 
-  const handleSelectEmailUser = (userToSelect) => {
-    setSelectedEmailUser(userToSelect);
-    setInviteEmail(userToSelect.email || '');
-    setInvitePhone(userToSelect.phone || '');
+  const handleCloseModal = () => {
+    setShowInviteModal(false);
+    setPhoneUsers([]);
+    setSelectedPhoneUser(null);
+    setEmailUsers([]);
+    setSelectedEmailUser(null);
+    setInviteEmail('');
+    setInvitePhone('');
   };
 
   const handleInvite = async () => {
@@ -309,16 +201,8 @@ const FamilyMembersScreen = ({ navigation }) => {
       return;
     }
 
-    console.log('📤 Inviting user:', {
-      selectedUserId: selectedUser.id,
-      selectedUserName: `${selectedUser.firstName} ${selectedUser.lastName}`,
-      email: inviteEmail,
-      phone: invitePhone,
-    });
-
     try {
       setIsInviting(true);
-      // Use selected user's ID in the URL path
       await apiService.family.invite(selectedUser.id, {
         email: inviteEmail || undefined,
         phone: invitePhone || undefined,
@@ -338,7 +222,6 @@ const FamilyMembersScreen = ({ navigation }) => {
               setSelectedPhoneUser(null);
               setEmailUsers([]);
               setSelectedEmailUser(null);
-              // Refresh family members after successful invite
               setTimeout(() => {
                 fetchFamilyMembers();
               }, 500);
@@ -366,12 +249,10 @@ const FamilyMembersScreen = ({ navigation }) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              console.log('🗑️ Removing family member with ID:', memberId);
               await apiService.user.removeFamilyMember(memberId);
               Alert.alert(t('family.success'), t('family.removeSuccess'));
               fetchFamilyMembers();
             } catch (error) {
-              console.error('Error removing family member:', error);
               const errorMessage = error?.data?.message || error?.message || t('family.removeError');
               Alert.alert(t('family.error'), errorMessage);
             }
@@ -383,9 +264,7 @@ const FamilyMembersScreen = ({ navigation }) => {
 
   const renderMemberCard = (member) => {
     const isOwner = member.role === 'owner';
-    const displayName = member.firstName && member.lastName
-      ? `${member.firstName} ${member.lastName}`
-      : member.firstName || member.lastName || member.email || 'User';
+    const displayName = getUserDisplayName(member);
 
     return (
       <View key={member.id} style={styles.memberCard}>
@@ -424,58 +303,6 @@ const FamilyMembersScreen = ({ navigation }) => {
     );
   };
 
-  const renderTabBar = () => (
-    <View style={styles.tabBar}>
-      <TouchableOpacity
-        style={[styles.tab]}
-        onPress={() => {
-          setSelectedTab('Home');
-          navigation.navigate('Home');
-        }}
-      >
-        <Ionicons name="home" size={24} color={colors.gray[400]} />
-        <Text style={styles.tabText}>{t('home.title')}</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.tab, selectedTab === 'Family' && styles.activeTab]}
-        onPress={() => setSelectedTab('Family')}
-      >
-        <Ionicons
-          name="people"
-          size={24}
-          color={selectedTab === 'Family' ? colors.white : colors.gray[400]}
-        />
-        <Text style={[styles.tabText, selectedTab === 'Family' && styles.activeTabText]}>
-          {t('family.title')}
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.tab]}
-        onPress={() => {
-          setSelectedTab('Payment');
-          navigation.navigate('PaymentMethods');
-        }}
-      >
-        <Ionicons name="card" size={24} color={colors.gray[400]} />
-        <Text style={styles.tabText}>{t('profile.payment')}</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.tab]}
-        onPress={() => {
-          setSelectedTab('Profile');
-          navigation.navigate('Profile');
-        }}
-      >
-        <View style={styles.profileIcon}>
-          <Ionicons name="person" size={20} color={colors.white} />
-        </View>
-        <Text style={styles.tabText}>{t('home.profile')}</Text>
-      </TouchableOpacity>
-    </View>
-  );
 
   const renderInviteModal = () => (
     <Modal
@@ -493,13 +320,7 @@ const FamilyMembersScreen = ({ navigation }) => {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{t('family.inviteMember')}</Text>
-              <TouchableOpacity onPress={() => {
-                setShowInviteModal(false);
-                setPhoneUsers([]);
-                setSelectedPhoneUser(null);
-                setEmailUsers([]);
-                setSelectedEmailUser(null);
-              }}>
+              <TouchableOpacity onPress={handleCloseModal}>
                 <Ionicons name="close" size={24} color={colors.text.primary} />
               </TouchableOpacity>
             </View>
@@ -509,117 +330,36 @@ const FamilyMembersScreen = ({ navigation }) => {
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>{t('family.email')}</Text>
-                <View style={styles.phoneInputContainer}>
-                  <TextInput
-                    style={styles.input}
-                    placeholder={t('family.emailPlaceholder')}
-                    value={inviteEmail}
-                    onChangeText={setInviteEmail}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
-                  {isSearchingEmail && (
-                    <ActivityIndicator size="small" color={colors.primary} style={styles.phoneSearchLoader} />
-                  )}
-                </View>
+              <UserSearchInput
+                label={t('family.email')}
+                placeholder={t('family.emailPlaceholder')}
+                value={inviteEmail}
+                onChangeText={setInviteEmail}
+                keyboardType="email-address"
+                isLoading={isSearchingEmail}
+              >
+                <UserSearchResults
+                  users={emailUsers}
+                  selectedUser={selectedEmailUser}
+                  onSelectUser={handleSelectUser}
+                />
+              </UserSearchInput>
 
-                {emailUsers.length > 0 && (
-                  <View style={styles.phoneUsersList}>
-                    <Text style={styles.phoneUsersTitle}>
-                      {emailUsers.length === 1
-                        ? t('family.userFound')
-                        : `${emailUsers.length} ${t('family.usersFound')}`}
-                    </Text>
-                    {emailUsers.map((emailUser) => (
-                      <TouchableOpacity
-                        key={emailUser.id}
-                        style={[
-                          styles.phoneUserItem,
-                          selectedEmailUser?.id === emailUser.id && styles.phoneUserItemSelected
-                        ]}
-                        onPress={() => handleSelectEmailUser(emailUser)}
-                      >
-                        <View style={styles.phoneUserItemContent}>
-                          <View style={styles.phoneUserAvatar}>
-                            <Ionicons name="person" size={20} color={colors.primary} />
-                          </View>
-                          <View style={styles.phoneUserDetails}>
-                            <Text style={styles.phoneUserName}>
-                              {emailUser.firstName && emailUser.lastName
-                                ? `${emailUser.firstName} ${emailUser.lastName}`
-                                : emailUser.firstName || emailUser.lastName || 'User'}
-                            </Text>
-                            {emailUser.email && (
-                              <Text style={styles.phoneUserEmail}>{emailUser.email}</Text>
-                            )}
-                          </View>
-                          {selectedEmailUser?.id === emailUser.id && (
-                            <Ionicons name="checkmark-circle" size={20} color={colors.green[500]} />
-                          )}
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-              </View>
+              <UserSearchInput
+                label={t('family.phone')}
+                placeholder={t('family.phonePlaceholder')}
+                value={invitePhone}
+                onChangeText={setInvitePhone}
+                keyboardType="phone-pad"
+                isLoading={isSearchingPhone}
+              >
+                <UserSearchResults
+                  users={phoneUsers}
+                  selectedUser={selectedPhoneUser}
+                  onSelectUser={handleSelectUser}
+                />
+              </UserSearchInput>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>{t('family.phone')}</Text>
-                <View style={styles.phoneInputContainer}>
-                  <TextInput
-                    style={styles.input}
-                    placeholder={t('family.phonePlaceholder')}
-                    value={invitePhone}
-                    onChangeText={setInvitePhone}
-                    keyboardType="phone-pad"
-                  />
-                  {isSearchingPhone && (
-                    <ActivityIndicator size="small" color={colors.primary} style={styles.phoneSearchLoader} />
-                  )}
-                </View>
-
-                {phoneUsers.length > 0 && (
-                  <View style={styles.phoneUsersList}>
-                    <Text style={styles.phoneUsersTitle}>
-                      {phoneUsers.length === 1
-                        ? t('family.userFound')
-                        : `${phoneUsers.length} ${t('family.usersFound')}`}
-                    </Text>
-                    {phoneUsers.map((phoneUser) => (
-                      <TouchableOpacity
-                        key={phoneUser.id}
-                        style={[
-                          styles.phoneUserItem,
-                          selectedPhoneUser?.id === phoneUser.id && styles.phoneUserItemSelected
-                        ]}
-                        onPress={() => handleSelectPhoneUser(phoneUser)}
-                      >
-                        <View style={styles.phoneUserItemContent}>
-                          <View style={styles.phoneUserAvatar}>
-                            <Ionicons name="person" size={20} color={colors.primary} />
-                          </View>
-                          <View style={styles.phoneUserDetails}>
-                            <Text style={styles.phoneUserName}>
-                              {phoneUser.firstName && phoneUser.lastName
-                                ? `${phoneUser.firstName} ${phoneUser.lastName}`
-                                : phoneUser.firstName || phoneUser.lastName || 'User'}
-                            </Text>
-                            {phoneUser.email && (
-                              <Text style={styles.phoneUserEmail}>{phoneUser.email}</Text>
-                            )}
-                          </View>
-                          {selectedPhoneUser?.id === phoneUser.id && (
-                            <Ionicons name="checkmark-circle" size={20} color={colors.green[500]} />
-                          )}
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-              </View>
               <Text style={styles.helpText}>{t('family.inviteHelp')}</Text>
             </ScrollView>
             <View style={styles.modalFooter}>
@@ -666,10 +406,7 @@ const FamilyMembersScreen = ({ navigation }) => {
           <Text style={styles.sectionTitle}>{t('family.members')}</Text>
           <TouchableOpacity
             style={styles.inviteButtonHeader}
-            onPress={() => {
-              fetchAllUsers();
-              setShowInviteModal(true);
-            }}
+            onPress={() => setShowInviteModal(true)}
           >
             <Ionicons name="person-add" size={20} color={colors.primary} />
             <Text style={styles.inviteButtonTextHeader}>{t('family.invite')}</Text>
@@ -688,10 +425,7 @@ const FamilyMembersScreen = ({ navigation }) => {
             <Text style={styles.emptySubtext}>{t('family.inviteFirst')}</Text>
             <TouchableOpacity
               style={styles.emptyInviteButton}
-              onPress={() => {
-                fetchAllUsers();
-                setShowInviteModal(true);
-              }}
+              onPress={() => setShowInviteModal(true)}
             >
               <Ionicons name="person-add" size={20} color={colors.white} />
               <Text style={styles.emptyInviteButtonText}>{t('family.inviteMember')}</Text>
@@ -704,7 +438,7 @@ const FamilyMembersScreen = ({ navigation }) => {
         )}
       </ScrollView>
 
-      {renderTabBar()}
+      <TabBar activeTab={selectedTab} onTabPress={setSelectedTab} navigation={navigation} />
 
       {renderInviteModal()}
     </SafeAreaView>
@@ -897,47 +631,6 @@ const styles = StyleSheet.create({
   removeButton: {
     padding: 4,
   },
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: colors.white,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingBottom: 20,
-    borderTopWidth: 1,
-    borderTopColor: colors.gray[200],
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-  },
-  activeTab: {
-    backgroundColor: colors.primary,
-  },
-  tabText: {
-    fontSize: 12,
-    color: colors.gray[400],
-    marginTop: 4,
-    fontWeight: '500',
-  },
-  activeTabText: {
-    color: colors.white,
-  },
-  profileIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.orange[500],
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -969,150 +662,11 @@ const styles = StyleSheet.create({
   modalBody: {
     padding: 20,
   },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text.primary,
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: colors.gray[100],
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: colors.text.primary,
-    borderWidth: 1,
-    borderColor: colors.gray[200],
-  },
   helpText: {
     fontSize: 12,
     color: colors.text.secondary,
     marginTop: 8,
     lineHeight: 18,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.gray[100],
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.gray[200],
-    paddingHorizontal: 12,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: colors.text.primary,
-  },
-  searchLoader: {
-    marginLeft: 8,
-  },
-  searchResultsContainer: {
-    marginTop: 16,
-    marginBottom: 16,
-  },
-  searchResultsTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text.primary,
-    marginBottom: 12,
-  },
-  searchResultItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.gray[50],
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
-  },
-  searchResultAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primary + '15',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  searchResultInfo: {
-    flex: 1,
-  },
-  searchResultName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text.primary,
-    marginBottom: 4,
-  },
-  searchResultContact: {
-    fontSize: 14,
-    color: colors.text.secondary,
-  },
-  phoneInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  phoneSearchLoader: {
-    marginLeft: 8,
-  },
-  phoneUsersList: {
-    marginTop: 12,
-  },
-  phoneUsersTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text.primary,
-    marginBottom: 8,
-  },
-  phoneUserItem: {
-    backgroundColor: colors.gray[50],
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: colors.gray[200],
-  },
-  phoneUserItemSelected: {
-    backgroundColor: colors.green[500] + '15',
-    borderColor: colors.green[500],
-  },
-  phoneUserItemContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  phoneUserAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primary + '15',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  phoneUserDetails: {
-    flex: 1,
-  },
-  phoneUserName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text.primary,
-    marginBottom: 4,
-  },
-  phoneUserEmail: {
-    fontSize: 14,
-    color: colors.text.secondary,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.gray[200],
-    marginVertical: 20,
   },
   modalFooter: {
     flexDirection: 'row',

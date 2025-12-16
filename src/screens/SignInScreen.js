@@ -22,7 +22,7 @@ import { validateEmail, validatePassword } from '../utils/validation';
 const SignInScreen = ({ navigation }) => {
   const { t, i18n } = useTranslation();
   const dispatch = useAppDispatch();
-  const { isAuthenticated, isLoading, error } = useAppSelector(state => state.auth);
+  const { isAuthenticated, isLoading, error, user } = useAppSelector(state => state.auth);
   
   const [formData, setFormData] = useState({
     email: '',
@@ -34,10 +34,28 @@ const SignInScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+    if (isAuthenticated && user) {
+      // Check if user is verified, if not redirect to pending verification screen
+      // Handle both boolean true and string "true"
+      const isVerified = user.isVerified === true || user.isVerified === 'true';
+      
+      console.log('🔍 SignInScreen - Verification Check:', {
+        userId: user.id,
+        email: user.email,
+        isVerified: user.isVerified,
+        isVerifiedType: typeof user.isVerified,
+        verified: isVerified,
+      });
+      
+      if (isVerified) {
+        console.log('✅ User is verified, navigating to Home');
+        navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+      } else {
+        console.log('❌ User is not verified, navigating to PendingVerification');
+        navigation.reset({ index: 0, routes: [{ name: 'PendingVerification' }] });
+      }
     }
-  }, [isAuthenticated, navigation]);
+  }, [isAuthenticated, user, user?.isVerified, navigation]);
 
   useEffect(() => {
     if (error) {

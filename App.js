@@ -24,6 +24,7 @@ import PinAccessScreen from './src/screens/PinAccessScreen';
 import FaceRecognitionScreen from './src/screens/FaceRecognitionScreen';
 import SubscriptionsScreen from './src/screens/SubscriptionsScreen';
 import FamilyMembersScreen from './src/screens/FamilyMembersScreen';
+import PendingVerificationScreen from './src/screens/PendingVerificationScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -42,6 +43,7 @@ export default function App() {
         >
           <Stack.Screen name="SignUp" component={SignUpScreen} />
           <Stack.Screen name="SignIn" component={SignInScreen} />
+          <Stack.Screen name="PendingVerification" component={PendingVerificationScreen} />
           <Stack.Screen name="Home" component={HomeScreen} />
           <Stack.Screen name="Profile" component={ProfileScreen} />
           <Stack.Screen name="PersonalInformation" component={PersonalInformationScreen} />

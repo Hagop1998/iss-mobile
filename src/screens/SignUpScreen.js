@@ -131,10 +131,10 @@ const SignUpScreen = ({ navigation }) => {
         password: formData.password,
       })).unwrap();
       
-      // Navigate to Home (handled by SignIn useEffect)
+      // Navigate to PendingVerificationScreen (user will be verified by admin)
       navigation.reset({
         index: 0,
-        routes: [{ name: 'Home' }],
+        routes: [{ name: 'PendingVerification' }],
       });
     } catch (e) {
       Alert.alert(t('common.error'), String(e));

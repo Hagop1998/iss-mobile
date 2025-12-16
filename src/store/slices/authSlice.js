@@ -22,7 +22,8 @@ export const signUpUser = createAsyncThunk(
         password: userData.password,
         phone: userData.phone,
         bio: userData.bio || '',
-        role: userData.role || 'user',
+        // Force role to 'user' for all registrations to prevent clients from assigning elevated roles
+        role: 'user',
       };
       
       console.log('Registration payload:', { ...payload, password: '***' });
@@ -144,9 +145,18 @@ export const checkAuthStatus = createAsyncThunk(
       
       return response?.data || response;
     } catch (error) {
-      console.error('❌ AUTH STATUS CHECK ERROR:', error);
-      console.error('Error details:', JSON.stringify(error, null, 2));
-      return rejectWithValue(error?.data?.message || error.message || 'Auth status check failed');
+      // Suppress error logging for server errors (5xx) to avoid spam
+      // These are handled gracefully by the components
+      const errorMessage = error?.data?.message || error?.message || String(error);
+      const isServerError = error?.status >= 500 || errorMessage.includes('Internal server error') || errorMessage.includes('500');
+      
+      if (!isServerError) {
+        // Only log non-server errors for debugging
+        console.error('❌ AUTH STATUS CHECK ERROR:', error);
+        console.error('Error details:', JSON.stringify(error, null, 2));
+      }
+      
+      return rejectWithValue(errorMessage || 'Auth status check failed');
     }
   }
 );
@@ -327,14 +337,22 @@ const authSlice = createSlice({
           const currentToken = state.user?.token;
           state.user = { ...state.user, ...action.payload.user, token: currentToken };
           console.log('Token preserved:', currentToken ? 'Yes (length: ' + currentToken.length + ')' : 'No token found');
+        } else if (action.payload && !action.payload.user) {
+          // Handle case where response is directly the user object
+          const currentToken = state.user?.token;
+          state.user = { ...state.user, ...action.payload, token: currentToken };
         }
         state.error = null;
       })
       .addCase(checkAuthStatus.rejected, (state, action) => {
-        console.error('❌ Check Auth Status - Rejected:', action.payload);
-        console.warn('⚠️ Auth status check failed, but keeping user logged in if token exists');
+        // Only log server errors occasionally to avoid spam
+        const errorMessage = action.payload || 'Unknown error';
+        // Don't spam console with repeated server errors - they're handled in the component
+        if (!errorMessage.toString().includes('Internal server error')) {
+          console.warn('⚠️ Auth status check failed:', errorMessage);
+        }
         state.isLoading = false;
-        
+        // Keep user logged in if token exists - don't clear auth state on status check failure
       });
 
     // Update User Data

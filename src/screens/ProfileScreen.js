@@ -19,6 +19,7 @@ import { useAuth } from '../hooks/useAuth';
 import LanguageSelectorModal from '../components/LanguageSelectorModal';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
+import TabBar from '../components/TabBar';
 
 const ProfileScreen = ({ navigation }) => {
   const { t, i18n } = useTranslation();
@@ -258,53 +259,6 @@ const ProfileScreen = ({ navigation }) => {
     </TouchableOpacity>
   );
 
-  const renderTabBar = () => (
-    <View style={styles.tabBar}>
-      <TouchableOpacity 
-        style={[styles.tab]}
-        onPress={() => {
-          setSelectedTab('Home');
-          navigation.navigate('Home');
-        }}
-      >
-        <Ionicons name="home" size={24} color={colors.gray[400]} />
-        <Text style={styles.tabText}>{t('home.title')}</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={[styles.tab]}
-        onPress={() => {
-          setSelectedTab('Family');
-          navigation.navigate('FamilyMembers');
-        }}
-      >
-        <Ionicons name="people" size={24} color={colors.gray[400]} />
-        <Text style={styles.tabText}>{t('family.title')}</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={[styles.tab]}
-        onPress={() => setSelectedTab('Payment')}
-      >
-        <Ionicons name="card" size={24} color={colors.gray[400]} />
-        <Text style={styles.tabText}>{t('profile.payment')}</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={[styles.tab, selectedTab === 'Profile' && styles.activeTab]}
-        onPress={() => setSelectedTab('Profile')}
-      >
-        <Ionicons 
-          name="person" 
-          size={24} 
-          color={selectedTab === 'Profile' ? colors.white : colors.gray[400]} 
-        />
-        <Text style={[styles.tabText, selectedTab === 'Profile' && styles.activeTabText]}>
-          {t('home.profile')}
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
 
   if (isLoading) {
     return (
@@ -386,7 +340,7 @@ const ProfileScreen = ({ navigation }) => {
         </View>
       </ScrollView>
 
-      {renderTabBar()}
+      <TabBar activeTab={selectedTab} onTabPress={setSelectedTab} navigation={navigation} />
 
       <LanguageSelectorModal
         visible={modals.languageSelector}
@@ -503,32 +457,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.white,
     fontWeight: '500',
-  },
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: colors.white,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.gray[200],
-  },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  activeTab: {
-    backgroundColor: colors.primary,
-  },
-  tabText: {
-    fontSize: 12,
-    color: colors.gray[400],
-    marginTop: 4,
-    fontWeight: '500',
-  },
-  activeTabText: {
-    color: colors.white,
   },
 });
 
