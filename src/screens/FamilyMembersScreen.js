@@ -187,9 +187,6 @@ const FamilyMembersScreen = ({ navigation }) => {
       return;
     }
 
-    // If a user was selected from phone or email search, use their ID in the URL path
-    // The endpoint is: POST /users/invite-family-member/{userId}
-    // userId in path should be the selected user's ID (the one being invited)
 
     const selectedUser = selectedPhoneUser || selectedEmailUser;
 
@@ -269,23 +266,36 @@ const FamilyMembersScreen = ({ navigation }) => {
     return (
       <View key={member.id} style={styles.memberCard}>
         <View style={styles.memberInfo}>
-          <View style={styles.memberAvatar}>
-            <Ionicons name="person" size={24} color={colors.primary} />
+          <View style={[styles.memberAvatar, isOwner && styles.memberAvatarOwner]}>
+            <Ionicons name="person" size={28} color={isOwner ? colors.orange[500] : colors.primary} />
           </View>
           <View style={styles.memberDetails}>
             <View style={styles.memberNameRow}>
               <Text style={styles.memberName}>{displayName}</Text>
               {isOwner && (
                 <View style={styles.ownerBadge}>
-                  <Ionicons name="star" size={12} color={colors.orange[500]} />
+                  <Ionicons name="star" size={14} color={colors.orange[500]} />
                   <Text style={styles.ownerBadgeText}>{t('family.owner')}</Text>
                 </View>
               )}
             </View>
-            {member.email && <Text style={styles.memberContact}>{member.email}</Text>}
-            {member.phone && <Text style={styles.memberContact}>{member.phone}</Text>}
+            <View style={styles.memberContactContainer}>
+              {member.email && (
+                <View style={styles.contactRow}>
+                  <Ionicons name="mail-outline" size={14} color={colors.text.secondary} />
+                  <Text style={styles.memberContact}>{member.email}</Text>
+                </View>
+              )}
+              {member.phone && (
+                <View style={styles.contactRow}>
+                  <Ionicons name="call-outline" size={14} color={colors.text.secondary} />
+                  <Text style={styles.memberContact}>{member.phone}</Text>
+                </View>
+              )}
+            </View>
             <View style={styles.memberStatus}>
               <View style={[styles.statusBadge, styles.statusActive]}>
+                <View style={styles.statusDot} />
                 <Text style={styles.statusText}>{t('family.active')}</Text>
               </View>
             </View>
@@ -296,7 +306,7 @@ const FamilyMembersScreen = ({ navigation }) => {
             style={styles.removeButton}
             onPress={() => handleRemoveMember(member.id)}
           >
-            <Ionicons name="close-circle" size={24} color={colors.red[500]} />
+            <Ionicons name="trash-outline" size={20} color={colors.red[500]} />
           </TouchableOpacity>
         )}
       </View>
@@ -569,16 +579,18 @@ const styles = StyleSheet.create({
   memberCard: {
     backgroundColor: colors.white,
     borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    padding: 20,
+    marginBottom: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
     elevation: 4,
+    borderWidth: 1,
+    borderColor: colors.gray[100],
   },
   memberInfo: {
     flexDirection: 'row',
@@ -586,50 +598,97 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   memberAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: colors.primary + '15',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 16,
+    borderWidth: 2,
+    borderColor: colors.primary + '30',
+  },
+  memberAvatarOwner: {
+    backgroundColor: colors.orange[500] + '15',
+    borderColor: colors.orange[500] + '30',
   },
   memberDetails: {
     flex: 1,
   },
+  memberNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    flexWrap: 'wrap',
+  },
   memberName: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
     color: colors.text.primary,
+    marginRight: 8,
+  },
+  ownerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.orange[500] + '20',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  ownerBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.orange[700],
+  },
+  memberContactContainer: {
+    marginBottom: 8,
+  },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 4,
+    gap: 6,
   },
   memberContact: {
     fontSize: 14,
     color: colors.text.secondary,
-    marginBottom: 2,
+    flex: 1,
   },
   memberStatus: {
-    marginTop: 8,
+    marginTop: 4,
   },
   statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     alignSelf: 'flex-start',
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 5,
     borderRadius: 12,
+    gap: 6,
   },
   statusActive: {
-    backgroundColor: colors.green[500] + '20',
+    backgroundColor: colors.green[500] + '15',
   },
   statusPending: {
-    backgroundColor: colors.orange[500] + '20',
+    backgroundColor: colors.orange[500] + '15',
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.green[500],
   },
   statusText: {
     fontSize: 12,
-    fontWeight: '500',
-    color: colors.text.primary,
+    fontWeight: '600',
+    color: colors.green[700],
   },
   removeButton: {
-    padding: 4,
+    padding: 8,
+    marginLeft: 8,
+    borderRadius: 8,
+    backgroundColor: colors.red[500] + '10',
   },
   modalOverlay: {
     flex: 1,

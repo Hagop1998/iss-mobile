@@ -18,7 +18,6 @@ const PaymentMethodsScreen = ({ navigation }) => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   
-  // Redux state
   const { user } = useAppSelector(state => state.auth);
   const { paymentMethods, isLoading } = useAppSelector(state => state.profile);
 

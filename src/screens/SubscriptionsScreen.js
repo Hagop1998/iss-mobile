@@ -15,6 +15,8 @@ import { useAppSelector } from '../store/hooks';
 import { apiService } from '../services/api';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
+import { formatDate, formatPrice } from '../utils/formatters';
+import { getServiceIcon, getServiceColor, getStatusColor } from '../utils/serviceHelpers';
 
 const SubscriptionsScreen = ({ navigation }) => {
   const { t } = useTranslation();
@@ -56,7 +58,6 @@ const SubscriptionsScreen = ({ navigation }) => {
       const response = await apiService.subscriptions.getUserSubscriptions(user.id);
       console.log('✅ Subscriptions response:', response);
       
-      // Handle different response formats
       let subscriptionsData = [];
       
       if (Array.isArray(response)) {
@@ -66,7 +67,6 @@ const SubscriptionsScreen = ({ navigation }) => {
       } else if (Array.isArray(response?.subscriptions)) {
         subscriptionsData = response.subscriptions;
       } else if (response && typeof response === 'object') {
-        // Single subscription object - convert to array
         const subscription = {
           id: response.id,
           service_name: response.subscription?.name || 'Service',
@@ -85,6 +85,12 @@ const SubscriptionsScreen = ({ navigation }) => {
       setSubscriptions(subscriptionsData);
       console.log(`✅ Loaded ${subscriptionsData.length} subscriptions`);
     } catch (error) {
+      if (error?.status === 404 || error?.data?.statusCode === 404) {
+        console.log('ℹ️ User has no subscriptions (404) - treating as empty array');
+        setSubscriptions([]);
+        return;
+      }
+      
       console.error('❌ Failed to fetch subscriptions:', error);
       Alert.alert(
         t('common.error'),
@@ -100,78 +106,6 @@ const SubscriptionsScreen = ({ navigation }) => {
     setIsRefreshing(true);
     await fetchSubscriptions();
     setIsRefreshing(false);
-  };
-
-  const getServiceIcon = (type) => {
-    const serviceType = type?.toLowerCase() || '';
-    switch (serviceType) {
-      case 'intercom':
-      case 'smart_intercom':
-        return 'call';
-      case 'elevator':
-        return 'business';
-      case 'security':
-      case 'cameras':
-      case 'surveillance':
-        return 'videocam';
-      case 'barrier':
-        return 'car';
-      default:
-        return 'settings';
-    }
-  };
-
-  const getServiceColor = (type) => {
-    const serviceType = type?.toLowerCase() || '';
-    switch (serviceType) {
-      case 'intercom':
-      case 'smart_intercom':
-        return colors.blue?.[500] || '#3B82F6';
-      case 'elevator':
-        return colors.green?.[500] || '#10B981';
-      case 'security':
-      case 'cameras':
-      case 'surveillance':
-        return colors.orange?.[500] || '#F59E0B';
-      case 'barrier':
-        return colors.primary || '#3C0056';
-      default:
-        return colors.gray?.[500] || '#6B7280';
-    }
-  };
-
-  const getStatusColor = (status) => {
-    const statusLower = status?.toLowerCase() || '';
-    switch (statusLower) {
-      case 'active':
-        return { bg: colors.green?.[100] || '#D1FAE5', text: colors.green?.[700] || '#047857' };
-      case 'expired':
-      case 'cancelled':
-        return { bg: colors.red?.[100] || '#FEE2E2', text: colors.red?.[700] || '#B91C1C' };
-      case 'pending':
-        return { bg: colors.yellow?.[100] || '#FEF3C7', text: colors.yellow?.[700] || '#A16207' };
-      default:
-        return { bg: colors.gray?.[100] || '#F3F4F6', text: colors.gray?.[700] || '#374151' };
-    }
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString();
-    } catch (error) {
-      return dateString;
-    }
-  };
-
-  const formatPrice = (price, currency = 'AMD') => {
-    if (!price && price !== 0) return 'N/A';
-    try {
-      return `${Number(price).toLocaleString()} ${currency}`;
-    } catch (error) {
-      return `${price} ${currency}`;
-    }
   };
 
   const renderSubscriptionCard = (subscription) => {

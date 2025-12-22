@@ -24,10 +24,8 @@ const QRCodeResultScreen = ({ navigation, route }) => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   
-  // RTK Query hooks
   const [shareQRCode, { isLoading: isSharing }] = useShareQRCodeMutation();
   
-  // Get QR data from route params
   const qrData = route?.params?.qrData;
 
   console.log('═══════════════════════════════════════════════════════════');
@@ -35,7 +33,6 @@ const QRCodeResultScreen = ({ navigation, route }) => {
   console.log('QR Data received:', JSON.stringify(qrData, null, 2));
   console.log('═══════════════════════════════════════════════════════════');
 
-  // Check if response indicates an error
   if (!qrData) {
     console.error('❌ No QR data received, going back');
     Alert.alert(
@@ -46,7 +43,6 @@ const QRCodeResultScreen = ({ navigation, route }) => {
     return null;
   }
 
-  // Check if API returned an error code (accept 200 and 201 as success)
   if (qrData?.code && qrData.code !== 200 && qrData.code !== 201) {
     console.error('❌ API returned error code:', qrData.code, qrData.msg);
     Alert.alert(
@@ -57,7 +53,6 @@ const QRCodeResultScreen = ({ navigation, route }) => {
     return null;
   }
 
-  // Check if we have actual QR code data (image or QR code string)
   const hasQRCodeData = qrData?.imageData ||
                        qrData?.data?.qrCode || 
                        qrData?.data?.qrData || 
@@ -72,7 +67,7 @@ const QRCodeResultScreen = ({ navigation, route }) => {
 
   const getServiceInfo = () => {
     try {
-      const serviceId = qrData?.service || 'barrier'; // Default to barrier if not set
+      const serviceId = qrData?.service || 'barrier'; 
       const service = services.find(s => s.id === serviceId);
     return service || { name: t('qr.service'), icon: 'settings' };
     } catch (error) {
@@ -97,7 +92,6 @@ const QRCodeResultScreen = ({ navigation, route }) => {
 
   const getTimePeriodInfo = () => {
     try {
-    // Check all time period arrays (combined)
     const allTimePeriods = [...deliveryTimePeriods, ...friendsFamilyTimePeriods];
       const period = allTimePeriods.find(p => p.value === qrData?.timePeriod);
     
@@ -105,7 +99,6 @@ const QRCodeResultScreen = ({ navigation, route }) => {
       return period;
     }
     
-    // Fallback: create a period object from the value
       const hours = qrData?.timePeriod || 0;
     if (hours >= 720) {
       return { name: '1 month', value: hours };
@@ -126,7 +119,6 @@ const QRCodeResultScreen = ({ navigation, route }) => {
 
   const formatExpiryTime = () => {
     try {
-      // If expiresAt is provided by the API
       if (qrData.expiresAt) {
         const expiryDate = new Date(qrData.expiresAt);
         const now = new Date();
@@ -141,7 +133,6 @@ const QRCodeResultScreen = ({ navigation, route }) => {
           return t('qr.expiresInHours', { hours: diffHours });
         }
       } else {
-        // Fallback: calculate from timePeriod
         const hours = qrData.timePeriod || 0;
         if (hours === 1) {
           return t('qr.expiresIn1Hour');
@@ -157,29 +148,23 @@ const QRCodeResultScreen = ({ navigation, route }) => {
 
   const handleShare = async () => {
     try {
-      // Check if we have an image to share
       if (qrData?.imageData) {
         console.log('📤 Sharing QR code image...');
         
-        // Create a temporary file path
         const fileName = `qr_code_${Date.now()}.jpg`;
         const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
         
-        // Extract base64 data from data URL
         let base64Data = qrData.imageData;
         if (base64Data.includes(',')) {
           base64Data = base64Data.split(',')[1];
         }
         
-        // Write base64 data to file using legacy API
         console.log('💾 Writing image to file:', fileUri);
         try {
-          // Try with EncodingBase64 constant first
           await FileSystem.writeAsStringAsync(fileUri, base64Data, {
             encoding: FileSystem.EncodingBase64 || 'base64',
           });
         } catch (encodingError) {
-          // Fallback: try with string 'base64'
           console.warn('⚠️ First encoding attempt failed, trying string:', encodingError);
           await FileSystem.writeAsStringAsync(fileUri, base64Data, {
             encoding: 'base64',
@@ -188,7 +173,6 @@ const QRCodeResultScreen = ({ navigation, route }) => {
         
         console.log('✅ QR code image saved to:', fileUri);
         
-        // Check if sharing is available
         const isAvailable = await Sharing.isAvailableAsync();
         if (!isAvailable) {
           Alert.alert(
@@ -198,7 +182,6 @@ const QRCodeResultScreen = ({ navigation, route }) => {
           return;
         }
         
-        // Share the image file
         await Sharing.shareAsync(fileUri, {
           mimeType: 'image/jpeg',
           dialogTitle: t('qr.share') || 'Share QR Code',
@@ -206,15 +189,12 @@ const QRCodeResultScreen = ({ navigation, route }) => {
         
         console.log('✅ QR code image shared successfully');
         
-        // Also call RTK Query mutation for tracking
         try {
           await shareQRCode(qrData).unwrap();
         } catch (trackingError) {
           console.warn('⚠️ Share tracking failed:', trackingError);
-          // Don't show error to user, sharing was successful
         }
       } else {
-        // Fallback: Share text/URL if no image available
         console.log('📤 Sharing QR code as text (no image available)...');
         const shareContent = {
           message: t('qr.shareMessage', {
@@ -228,7 +208,6 @@ const QRCodeResultScreen = ({ navigation, route }) => {
 
         await Share.share(shareContent);
         
-        // Also call RTK Query mutation for tracking
         try {
           await shareQRCode(qrData).unwrap();
         } catch (trackingError) {
@@ -256,7 +235,6 @@ const QRCodeResultScreen = ({ navigation, route }) => {
 
   const renderQRCode = () => {
     try {
-      // Check if we have an image from the backend (JPEG response)
       if (qrData?.imageData) {
         console.log('✅ Rendering QR code image from backend');
         return (
@@ -271,16 +249,14 @@ const QRCodeResultScreen = ({ navigation, route }) => {
         );
       }
 
-      // Get QR code data from backend response (fallback for string-based QR codes)
       const qrCodeData = qrData?.data?.qrCode || 
                         qrData?.data?.qrData || 
                         qrData?.qrCode || 
                         qrData?.qrData ||
                         qrData?.data?.qrUrl ||
                         qrData?.qrUrl ||
-                        qrData?.id; // QR code ID to generate QR code from
+                        qrData?.id; 
       
-      // If no QR code data from backend, show error message
       if (!qrCodeData && !hasQRCodeData) {
         return (
           <View style={styles.qrCodeContainer}>
@@ -293,8 +269,6 @@ const QRCodeResultScreen = ({ navigation, route }) => {
         );
       }
       
-      // TODO: Install and use a QR code library like 'react-native-qrcode-svg' or 'react-native-qrcode-generator'
-      // For now, show placeholder with note that real QR code will come from backend
       return (
         <View style={styles.qrCodeContainer}>
           <View style={styles.qrCode}>

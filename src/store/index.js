@@ -21,6 +21,3 @@ export const store = configureStore({
     }).concat(qrApi.middleware),
 });
 
-// Type definitions for TypeScript (when using TypeScript)
-// export type RootState = ReturnType<typeof store.getState>;
-// export type AppDispatch = typeof store.dispatch;

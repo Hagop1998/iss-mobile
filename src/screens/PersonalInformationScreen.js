@@ -27,7 +27,6 @@ const PersonalInformationScreen = ({ navigation }) => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   
-  // Redux state
   const { user, isLoading } = useAppSelector(state => state.auth);
   const { userProfile, isUpdating, updateError } = useAppSelector(state => state.profile);
   
@@ -47,7 +46,6 @@ const PersonalInformationScreen = ({ navigation }) => {
   const [filteredAddresses, setFilteredAddresses] = useState([]);
   const [isLoadingAddresses, setIsLoadingAddresses] = useState(false);
 
-  // Fetch latest user data from /auth/status when screen loads
   useEffect(() => {
     console.log('🔄 PersonalInformationScreen mounted - fetching user data from /auth/status');
     console.log('Current user state:', { 
@@ -57,13 +55,11 @@ const PersonalInformationScreen = ({ navigation }) => {
       tokenLength: user?.token?.length 
     });
     
-    // IMPORTANT: Ensure token is set in API client before making requests
     if (user?.token) {
       console.log('✅ Setting token in API client...');
       apiClient.setAuthToken(user.token);
       console.log('Token set successfully, now calling /auth/status');
       
-      // Call /auth/status to get latest user data
       dispatch(checkAuthStatus())
         .unwrap()
         .then((response) => {
@@ -73,7 +69,6 @@ const PersonalInformationScreen = ({ navigation }) => {
           console.error('❌ Failed to fetch user data:', error);
         });
       
-      // Also fetch user profile
       if (user?.id) {
         dispatch(fetchUserProfile(user.id));
       }
@@ -89,7 +84,6 @@ const PersonalInformationScreen = ({ navigation }) => {
     console.log('📝 Populating Form Fields with User Data');
     console.log('═══════════════════════════════════════════════════════════');
     
-    // Initialize form data from auth user state (most up-to-date from /auth/status)
     if (user) {
       console.log('✅ Using data from auth state (from /auth/status):');
       console.log('  • First Name:', user.firstName || '(empty)');
@@ -110,7 +104,6 @@ const PersonalInformationScreen = ({ navigation }) => {
       setFormData(newFormData);
       console.log('✅ Form fields populated successfully!');
     } else if (userProfile) {
-      // Fallback to profile data if user state not available
       console.log('⚠️ Using fallback data from profile state:');
       console.log('  • First Name:', userProfile.firstName || '(empty)');
       console.log('  • Last Name:', userProfile.lastName || '(empty)');
@@ -138,7 +131,6 @@ const PersonalInformationScreen = ({ navigation }) => {
     }
   }, [updateError, t, dispatch]);
 
-  // Sync profile image from backend
   useEffect(() => {
     if (userProfile?.profileImage) {
       setProfileImage(userProfile.profileImage);
@@ -147,7 +139,6 @@ const PersonalInformationScreen = ({ navigation }) => {
     }
   }, [userProfile?.profileImage, user?.profileImage]);
 
-  // Fetch addresses from API
   const fetchAddresses = async () => {
     try {
       setIsLoadingAddresses(true);
@@ -156,7 +147,6 @@ const PersonalInformationScreen = ({ navigation }) => {
       const response = await apiService.address.getAddresses();
       console.log('✅ Addresses fetched:', response);
       
-      // Handle paginated response format
       let addressData = [];
       if (response?.results && Array.isArray(response.results)) {
         addressData = response.results;
@@ -189,9 +179,7 @@ const PersonalInformationScreen = ({ navigation }) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  // Address search and filter
   useEffect(() => {
-    // Safety check: ensure addresses is an array
     const addressList = Array.isArray(addresses) ? addresses : [];
     
     if (addressSearchQuery === '') {
@@ -199,7 +187,6 @@ const PersonalInformationScreen = ({ navigation }) => {
     } else {
       const filtered = addressList.filter(item => {
         const searchLower = addressSearchQuery.toLowerCase();
-        // Support different field names the API might return
         const address = item.address || item.street || item.name || '';
         const city = item.city || item.location || '';
         const description = item.description || '';
@@ -215,7 +202,6 @@ const PersonalInformationScreen = ({ navigation }) => {
   }, [addressSearchQuery, addresses]);
 
   const handleAddressSelect = (selectedAddress) => {
-    // Support different field names the API might return
     const address = selectedAddress.address || selectedAddress.street || selectedAddress.name || '';
     const city = selectedAddress.city || selectedAddress.location || '';
     const fullAddress = city ? `${address}, ${city}` : address;
@@ -231,7 +217,6 @@ const PersonalInformationScreen = ({ navigation }) => {
       console.log('📍 Opening address selector modal');
       setShowAddressModal(true);
       
-      // Fetch addresses if not already loaded
       if (addresses.length === 0) {
         await fetchAddresses();
       }
@@ -254,13 +239,12 @@ const PersonalInformationScreen = ({ navigation }) => {
     console.log('Form data to save:', formData);
     
     try {
-      // Use PATCH /users/{id} endpoint
       const updatePayload = {
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
         phone: formData.phoneNumber,
-        bio: formData.address, // Using address field as bio for now
+        bio: formData.address, 
       };
       
       console.log('Update payload:', updatePayload);
@@ -281,7 +265,6 @@ const PersonalInformationScreen = ({ navigation }) => {
 
   const handleCancel = () => {
     console.log('❌ Cancel pressed - restoring original data');
-    // Restore from user state (most up-to-date)
     if (user) {
       setFormData({
         firstName: user.firstName || '',
@@ -319,7 +302,6 @@ const PersonalInformationScreen = ({ navigation }) => {
       let result;
       
       if (source === 'camera') {
-        // Request camera permissions
         const { status } = await Camera.requestCameraPermissionsAsync();
         
         if (status !== 'granted') {
@@ -330,7 +312,6 @@ const PersonalInformationScreen = ({ navigation }) => {
           return;
         }
 
-        // Launch camera
         result = await ImagePicker.launchCameraAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           allowsEditing: true,
@@ -338,7 +319,6 @@ const PersonalInformationScreen = ({ navigation }) => {
           quality: 0.8,
         });
       } else {
-        // Request gallery permissions
         if (Platform.OS !== 'web') {
           const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
           
@@ -351,7 +331,6 @@ const PersonalInformationScreen = ({ navigation }) => {
           }
         }
 
-        // Launch image picker
         result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           allowsEditing: true,
@@ -360,15 +339,12 @@ const PersonalInformationScreen = ({ navigation }) => {
         });
       }
 
-      // Check if user cancelled
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const selectedImage = result.assets[0];
         console.log('📸 Image selected:', selectedImage.uri);
         
-        // Update local state immediately for UI feedback
         setProfileImage(selectedImage.uri);
         
-        // Upload to backend
         try {
           await dispatch(uploadProfileImage({ 
             uri: selectedImage.uri,
@@ -381,7 +357,6 @@ const PersonalInformationScreen = ({ navigation }) => {
         } catch (uploadError) {
           console.error('❌ Failed to upload image:', uploadError);
           Alert.alert(t('common.error'), uploadError || t('profile.imageUpdateFailed'));
-          // Revert local state if upload fails
           setProfileImage(userProfile.profileImage);
         }
       } else {
@@ -394,7 +369,6 @@ const PersonalInformationScreen = ({ navigation }) => {
   };
 
   const renderProfileImage = () => {
-    // Use local state first, fallback to userProfile
     const imageUri = profileImage || userProfile?.profileImage || user?.profileImage;
     
     return (
@@ -557,7 +531,6 @@ const PersonalInformationScreen = ({ navigation }) => {
                 data={filteredAddresses}
                 keyExtractor={(item, index) => item.id?.toString() || index.toString()}
                 renderItem={({ item }) => {
-                  // Support different field names the API might return
                   const address = item.address || item.street || item.name || 'Unknown Address';
                   const city = item.city || item.location || '';
                   
@@ -748,7 +721,6 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: '500',
   },
-  // Address Selector Styles
   addressSelector: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -762,7 +734,6 @@ const styles = StyleSheet.create({
   placeholderText: {
     color: colors.gray[400],
   },
-  // Modal Styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -788,7 +759,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text.primary,
   },
-  // Search Styles
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -806,7 +776,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text.primary,
   },
-  // Address List Styles
   addressItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -828,7 +797,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.text.secondary,
   },
-  // Empty List Styles
   emptyListContainer: {
     alignItems: 'center',
     justifyContent: 'center',

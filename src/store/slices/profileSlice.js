@@ -3,7 +3,6 @@ import apiService from '../../services/api';
 import { imageSizeEnum, entityTypeEnum } from '../../constants/enums';
 import * as ImageManipulator from 'expo-image-manipulator';
 
-// Initial state
 const initialState = {
   userProfile: {
     id: null,
@@ -25,16 +24,11 @@ const initialState = {
   updateError: null,
 };
 
-// Async thunks for API calls (ready for backend integration)
 export const fetchUserProfile = createAsyncThunk(
   'profile/fetchUserProfile',
   async (userId, { rejectWithValue }) => {
     try {
-      // TODO: Replace with actual API call
-      // const response = await apiService.user.getProfile();
-      // return response.data;
       
-      // Mock implementation for now
       await new Promise(resolve => setTimeout(resolve, 1000));
       return {
         id: userId,
@@ -58,11 +52,7 @@ export const updateUserProfile = createAsyncThunk(
   'profile/updateUserProfile',
   async (profileData, { rejectWithValue }) => {
     try {
-      // TODO: Replace with actual API call
-      // const response = await apiService.user.updateProfile(profileData);
-      // return response.data;
       
-      // Mock implementation for now
       await new Promise(resolve => setTimeout(resolve, 1500));
       return {
         ...profileData,
@@ -80,8 +70,7 @@ export const uploadProfileImage = createAsyncThunk(
     try {
       console.log('📤 Uploading profile image...');
       
-      // Resize image to medium size from enum on frontend
-      const targetSize = imageSizeEnum.medium; // '800x800' (user updated)
+      const targetSize = imageSizeEnum.medium; 
       const [targetWidth, targetHeight] = targetSize.split('x').map(Number);
       
       console.log('🔄 Resizing profile image to', targetSize, 'on frontend...');
@@ -96,7 +85,7 @@ export const uploadProfileImage = createAsyncThunk(
           ],
           {
             compress: 0.8,
-            format: ImageManipulator.SaveFormat.JPEG, // Ensure JPG format
+            format: ImageManipulator.SaveFormat.JPEG, 
           }
         );
         console.log('✅ Profile image resized:', resizedImage.width, 'x', resizedImage.height);
@@ -105,30 +94,24 @@ export const uploadProfileImage = createAsyncThunk(
         throw new Error(`Failed to resize image: ${resizeError?.message || 'Unknown error'}`);
       }
 
-      // Create FormData for multipart/form-data
       const formData = new FormData();
       
-      // Get file name from URI
       const filename = resizedImage.uri.split('/').pop() || 'avatar.jpg';
-      const fileExtension = 'jpg'; // Always JPG format
+      const fileExtension = 'jpg'; 
       
-      // Add file to FormData
       formData.append('file', {
         uri: resizedImage.uri,
         type: `image/jpeg`,
         name: `avatar.${fileExtension}`,
       });
       
-      // Add source using entityTypeEnum (AVATAR for profile image)
       formData.append('source', entityTypeEnum.AVATAR);
       
       console.log('📤 Uploading profile image with source:', entityTypeEnum.AVATAR);
       
-      // Upload file using media service
       const uploadResponse = await apiService.media.upload(formData);
       console.log('📥 Profile image upload response:', uploadResponse);
       
-      // Extract the image URL from response
       let imageUrl = '';
       if (typeof uploadResponse === 'string') {
         imageUrl = uploadResponse;
@@ -170,11 +153,7 @@ export const fetchActiveServices = createAsyncThunk(
   'profile/fetchActiveServices',
   async (userId, { rejectWithValue }) => {
     try {
-      // TODO: Replace with actual API call
-      // const response = await apiService.services.getActiveServices(userId);
-      // return response.data;
       
-      // Mock implementation for now
       await new Promise(resolve => setTimeout(resolve, 1000));
       return [
         {
@@ -218,11 +197,7 @@ export const fetchPaymentMethods = createAsyncThunk(
   'profile/fetchPaymentMethods',
   async (userId, { rejectWithValue }) => {
     try {
-      // TODO: Replace with actual API call
-      // const response = await apiService.payment.getMethods(userId);
-      // return response.data;
       
-      // Mock implementation for now
       await new Promise(resolve => setTimeout(resolve, 1000));
       return [
         {
@@ -270,11 +245,7 @@ export const deletePaymentMethod = createAsyncThunk(
   'profile/deletePaymentMethod',
   async (methodId, { rejectWithValue }) => {
     try {
-      // TODO: Replace with actual API call
-      // await apiService.payment.deleteMethod(methodId);
-      // return methodId;
       
-      // Mock implementation for now
       await new Promise(resolve => setTimeout(resolve, 1000));
       return methodId;
     } catch (error) {
@@ -283,7 +254,6 @@ export const deletePaymentMethod = createAsyncThunk(
   }
 );
 
-// Profile slice
 const profileSlice = createSlice({
   name: 'profile',
   initialState,
@@ -307,7 +277,6 @@ const profileSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    // Fetch User Profile
     builder
       .addCase(fetchUserProfile.pending, (state) => {
         state.isLoading = true;
@@ -323,7 +292,6 @@ const profileSlice = createSlice({
         state.error = action.payload;
       });
 
-    // Update User Profile
     builder
       .addCase(updateUserProfile.pending, (state) => {
         state.isUpdating = true;
@@ -339,7 +307,6 @@ const profileSlice = createSlice({
         state.updateError = action.payload;
       });
 
-    // Upload Profile Image
     builder
       .addCase(uploadProfileImage.pending, (state) => {
         state.isUpdating = true;
@@ -356,7 +323,6 @@ const profileSlice = createSlice({
         state.updateError = action.payload;
       });
 
-    // Fetch Active Services
     builder
       .addCase(fetchActiveServices.pending, (state) => {
         state.isLoading = true;
@@ -372,7 +338,6 @@ const profileSlice = createSlice({
         state.error = action.payload;
       });
 
-    // Fetch Payment Methods
     builder
       .addCase(fetchPaymentMethods.pending, (state) => {
         state.isLoading = true;
@@ -388,7 +353,6 @@ const profileSlice = createSlice({
         state.error = action.payload;
       });
 
-    // Change Password
     builder
       .addCase(changePassword.pending, (state) => {
         state.isUpdating = true;
@@ -403,7 +367,6 @@ const profileSlice = createSlice({
         state.updateError = action.payload;
       });
 
-    // Delete Payment Method
     builder
       .addCase(deletePaymentMethod.pending, (state) => {
         state.isUpdating = true;

@@ -1,16 +1,14 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { apiService, apiClient } from '../../services/api';
 
-// Initial state
 const initialState = {
   user: null,
   isAuthenticated: false,
   isLoading: false,
   error: null,
-  signUpData: null, // Temporary data before verification
+  signUpData: null, 
 };
 
-// Async thunks for API calls (ready for backend integration)
 export const signUpUser = createAsyncThunk(
   'auth/signUpUser',
   async (userData, { rejectWithValue }) => {
@@ -22,7 +20,6 @@ export const signUpUser = createAsyncThunk(
         password: userData.password,
         phone: userData.phone,
         bio: userData.bio || '',
-        // Force role to 'user' for all registrations to prevent clients from assigning elevated roles
         role: 'user',
       };
       
@@ -80,7 +77,6 @@ export const signInUser = createAsyncThunk(
       console.log('Login API Response:', JSON.stringify(response, null, 2));
       console.log('Response keys:', Object.keys(response || {}));
       
-      // Try to extract token from various possible locations
       const token = response?.token 
         || response?.access_token 
         || response?.accessToken
@@ -96,23 +92,19 @@ export const signInUser = createAsyncThunk(
       console.log('  - response?.user?.token:', !!response?.user?.token);
       console.log('Final extracted token:', token ? 'Token received (length: ' + token.length + ')' : '❌ NO TOKEN FOUND IN RESPONSE!');
       
-      // Extract user data
       const user = response?.user || response?.data?.user || response?.data || response;
       console.log('Extracted user data:', JSON.stringify(user, null, 2));
       
       if (token) {
-        // Set token globally for all API requests
         apiClient.setAuthToken(token);
         console.log('✅ Token set globally in API client');
         
-        // Verify token by calling /auth/status
         try {
           console.log('Calling /auth/status to verify token...');
           const statusResponse = await apiService.auth.getStatus();
           console.log('✅ Auth status verified:', JSON.stringify(statusResponse, null, 2));
         } catch (statusError) {
           console.warn('⚠️ Failed to verify auth status:', statusError);
-          // Don't fail the login if status check fails
         }
       } else {
         console.warn('⚠️ No token received from login API');
@@ -145,13 +137,10 @@ export const checkAuthStatus = createAsyncThunk(
       
       return response?.data || response;
     } catch (error) {
-      // Suppress error logging for server errors (5xx) to avoid spam
-      // These are handled gracefully by the components
       const errorMessage = error?.data?.message || error?.message || String(error);
       const isServerError = error?.status >= 500 || errorMessage.includes('Internal server error') || errorMessage.includes('500');
       
       if (!isServerError) {
-        // Only log non-server errors for debugging
         console.error('❌ AUTH STATUS CHECK ERROR:', error);
         console.error('Error details:', JSON.stringify(error, null, 2));
       }
@@ -187,10 +176,7 @@ export const logoutUser = createAsyncThunk(
   'auth/logoutUser',
   async (_, { rejectWithValue }) => {
     try {
-      // Clear token from API client
       apiClient.removeAuthToken();
-      // Optionally call backend logout endpoint if it exists
-      // await apiService.auth.signOut();
       return true;
     } catch (error) {
       return rejectWithValue(error.message || 'Logout failed');
@@ -202,11 +188,7 @@ export const refreshToken = createAsyncThunk(
   'auth/refreshToken',
   async (_, { rejectWithValue }) => {
     try {
-      // TODO: Replace with actual API call
-      // const response = await api.post('/auth/refresh');
-      // return response.data;
       
-      // Mock implementation for now
       await new Promise(resolve => setTimeout(resolve, 1000));
       return { success: true };
     } catch (error) {
@@ -215,7 +197,6 @@ export const refreshToken = createAsyncThunk(
   }
 );
 
-// Auth slice
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -240,7 +221,6 @@ const authSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    // Sign Up
     builder
       .addCase(signUpUser.pending, (state) => {
         state.isLoading = true;
@@ -256,7 +236,6 @@ const authSlice = createSlice({
         state.error = action.payload;
       });
 
-    // Sign In
     builder
       .addCase(signInUser.pending, (state) => {
         console.log('🔄 Sign In - Pending...');
@@ -287,7 +266,6 @@ const authSlice = createSlice({
         state.error = action.payload;
       });
 
-    // Logout
     builder
       .addCase(logoutUser.pending, (state) => {
         state.isLoading = true;
@@ -304,7 +282,6 @@ const authSlice = createSlice({
         state.error = action.payload;
       });
 
-    // Refresh Token
     builder
       .addCase(refreshToken.pending, (state) => {
         state.isLoading = true;
@@ -320,7 +297,6 @@ const authSlice = createSlice({
         state.error = action.payload;
       });
 
-    // Check Auth Status
     builder
       .addCase(checkAuthStatus.pending, (state) => {
         console.log('🔄 Check Auth Status - Pending...');
@@ -330,32 +306,25 @@ const authSlice = createSlice({
         console.log('✅ Check Auth Status - Fulfilled');
         console.log('Status response:', JSON.stringify(action.payload, null, 2));
         state.isLoading = false;
-        // Update user data if provided in status response
         if (action.payload?.user) {
           console.log('Updating user data from status response');
-          // Preserve the token when updating user data
           const currentToken = state.user?.token;
           state.user = { ...state.user, ...action.payload.user, token: currentToken };
           console.log('Token preserved:', currentToken ? 'Yes (length: ' + currentToken.length + ')' : 'No token found');
         } else if (action.payload && !action.payload.user) {
-          // Handle case where response is directly the user object
           const currentToken = state.user?.token;
           state.user = { ...state.user, ...action.payload, token: currentToken };
         }
         state.error = null;
       })
       .addCase(checkAuthStatus.rejected, (state, action) => {
-        // Only log server errors occasionally to avoid spam
         const errorMessage = action.payload || 'Unknown error';
-        // Don't spam console with repeated server errors - they're handled in the component
         if (!errorMessage.toString().includes('Internal server error')) {
           console.warn('⚠️ Auth status check failed:', errorMessage);
         }
         state.isLoading = false;
-        // Keep user logged in if token exists - don't clear auth state on status check failure
       });
 
-    // Update User Data
     builder
       .addCase(updateUserData.pending, (state) => {
         console.log('🔄 Update User Data - Pending...');
@@ -366,9 +335,7 @@ const authSlice = createSlice({
         console.log('✅ Update User Data - Fulfilled');
         console.log('Updated user data:', JSON.stringify(action.payload, null, 2));
         state.isLoading = false;
-        // Merge updated data with existing user data
         const updatedUser = action.payload?.user || action.payload;
-        // Preserve the token when updating user data
         const currentToken = state.user?.token;
         state.user = { ...state.user, ...updatedUser, token: currentToken };
         state.error = null;

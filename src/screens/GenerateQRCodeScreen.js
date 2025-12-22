@@ -28,6 +28,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import { DEFAULT_VALUES } from '../config/env';
 import { QrCodeTypeEnum, QrValidityTimeEnum } from '../constants/enums';
+import { getLocalIdByService } from '../utils/userHelpers';
 
 const GenerateQRCodeScreen = ({ navigation, route }) => {
   const { t } = useTranslation();
@@ -40,7 +41,6 @@ const GenerateQRCodeScreen = ({ navigation, route }) => {
     address
   } = useAppSelector(state => state.qr);
   
-  // Get user from auth state to get address
   const { user } = useAppSelector(state => state.auth);
   
   const [generateQRCode, { isLoading: isGenerating, error }] = useGenerateQRCodeMutation();
@@ -49,7 +49,6 @@ const GenerateQRCodeScreen = ({ navigation, route }) => {
 
   const serviceFromRoute = route?.params?.service;
 
-  // Get user address from profile (bio or address field)
   const getUserAddress = () => {
     return user?.bio || user?.address || DEFAULT_VALUES.LOCATION;
   };
@@ -58,19 +57,15 @@ const GenerateQRCodeScreen = ({ navigation, route }) => {
     if (serviceFromRoute) {
       dispatch(setSelectedService(serviceFromRoute));
     }
-    // Set address from user profile, fallback to default
     const userAddress = getUserAddress();
     dispatch(setAddress(userAddress));
   }, [serviceFromRoute, dispatch, user?.bio, user?.address]);
 
-  // Update available time periods when visitor identity changes
   useEffect(() => {
     if (selectedVisitorIdentity) {
       const periods = getTimePeriodsByVisitorType(selectedVisitorIdentity.id);
       setAvailableTimePeriods(periods);
       
-      // Reset selected time period when visitor identity changes
-      // Auto-select first period if none selected or current selection is not in new list
       if (!selectedTimePeriod || !periods.find(p => p.id === selectedTimePeriod?.id)) {
         if (periods.length > 0) {
           dispatch(setSelectedTimePeriod(periods[0]));
@@ -107,7 +102,6 @@ const GenerateQRCodeScreen = ({ navigation, route }) => {
 
   const handleGenerate = async () => {
   
-    // Log current state
     console.log('Current State:', {
       selectedService,
       selectedVisitorIdentity,
@@ -115,7 +109,6 @@ const GenerateQRCodeScreen = ({ navigation, route }) => {
       address,
     });
     
-    // Validate selectedService is set
     if (!selectedService) {
       console.error('❌ No service selected');
       Alert.alert(
@@ -133,20 +126,14 @@ const GenerateQRCodeScreen = ({ navigation, route }) => {
     }
 
     try {
-      // Map visitor identity to qrType enum
-      // friends_family -> VALID_PERIOD (1)
-      // delivery -> VALID_ONCE (0)
-      // selectedVisitorIdentity is an object with { id, name, icon }
       const visitorIdentityId = selectedVisitorIdentity?.id || selectedVisitorIdentity;
       const qrType = visitorIdentityId === 'friends_family' 
         ? QrCodeTypeEnum.VALID_PERIOD 
         : QrCodeTypeEnum.VALID_ONCE;
       
-      // Map time period selection to qrDate using QrValidityTimeEnum
       const timePeriodHours = selectedTimePeriod?.value || selectedTimePeriod || 2;
-      let qrDate = QrValidityTimeEnum.oneHour; // Default to 1 hour
+      let qrDate = QrValidityTimeEnum.oneHour; 
       
-      // Map time period hours to enum values
       if (timePeriodHours === 1) qrDate = QrValidityTimeEnum.oneHour;
       else if (timePeriodHours === 4) qrDate = QrValidityTimeEnum.fourHours;
       else if (timePeriodHours === 8) qrDate = QrValidityTimeEnum.eightHours;
@@ -157,60 +144,19 @@ const GenerateQRCodeScreen = ({ navigation, route }) => {
       else if (timePeriodHours === 336) qrDate = QrValidityTimeEnum.twoWeeks;
       else if (timePeriodHours === 720) qrDate = QrValidityTimeEnum.oneMonth;
       
-      // Get service-specific localIds
-      // Each service may have different device IDs
-      let localIds;
-      if (selectedService === 'smart_intercom') {
-        // Smart Intercom device ID
-        localIds = '2136131714170315'; // TODO: Replace with dynamic value from user.device.localId
-      } else if (selectedService === 'elevator') {
-        // Elevator device ID
-        localIds = '2136131714170315'; // TODO: Replace with dynamic value from user.device.localId
-      } else if (selectedService === 'barrier') {
-        // Barrier device ID (different from smart intercom)
-        localIds = '2136131714170315'; // TODO: Replace with dynamic value from user.device.localId for barrier
-      } else {
-        // Default fallback
-        localIds = '2136131714170315';
-      }
+      const localIds = getLocalIdByService(selectedService, user);
       
-      // TODO: In the future, get localIds from user profile:
-      // const localIds = selectedService === 'barrier' 
-      //   ? user?.device?.barrierLocalId || user?.device?.localId
-      //   : user?.device?.localId || user?.device?.localIds || user?.localId;
-      
-      // Build request payload according to API spec: { qrType, qrDate, localIds }
       const qrData = {
         qrType: qrType,
         qrDate: qrDate,
-        localIds: localIds, // Required field - service-specific
+        localIds: localIds, 
       };
       
-      // Add service-specific optional fields based on selected service
-      // These fields are optional and only needed for specific configurations
       if (selectedService === 'smart_intercom') {
-        // Smart Intercom optional fields
-        // Uncomment and configure if needed:
-        // qrData.acNums = '1,2'; // Comma-separated access control numbers
       } else if (selectedService === 'elevator') {
-        // Elevator optional fields
-        // Uncomment and configure if needed:
-        // qrData.elevatorK1 = '1'; // Elevator key 1
-        // qrData.elevatorL1 = '1,2,3'; // Floors for elevator 1 (comma-separated)
-        // qrData.elevatorK2 = '2'; // Elevator key 2
-        // qrData.elevatorL2 = '4,5'; // Floors for elevator 2
-        // qrData.elevatorK3 = '3'; // Elevator key 3
-        // qrData.elevatorL3 = '6,7'; // Floors for elevator 3
-        // qrData.elevatorK4 = '4'; // Elevator key 4
-        // qrData.elevatorL4 = '8,9'; // Floors for elevator 4
       } else if (selectedService === 'barrier') {
-        // Barrier optional fields
-        // Uncomment and configure if needed:
-        // qrData.barrierId = 'barrier001'; // Barrier ID
-        // qrData.barrierZone = 'zone1'; // Access zone
       }
       
-      // Log the complete payload being sent
       console.log('═══════════════════════════════════════════════════════════');
       console.log('📤 QR CODE GENERATION PAYLOAD');
       console.log('═══════════════════════════════════════════════════════════');
@@ -235,20 +181,16 @@ const GenerateQRCodeScreen = ({ navigation, route }) => {
       try {
         result = await generateQRCode(qrData).unwrap();
       } catch (unwrapError) {
-        // Check if this is actually a success (201 with parsing warning)
         if (unwrapError?.status === 201 && unwrapError?.data?.success === true) {
           console.log('✅ QR code was generated successfully (201), treating as success');
-          result = unwrapError.data; // Use the data from the error response
+          result = unwrapError.data; 
         } else {
-          // Re-throw if it's a real error
           throw unwrapError;
         }
       }
       
       console.log('📥 API Response:', JSON.stringify(result, null, 2));
       
-      // Validate response - check for error codes
-      // Accept both 200 and 201 as success
       if (result?.code && result.code !== 200 && result.code !== 201) {
         throw {
           status: result.code,
@@ -260,29 +202,22 @@ const GenerateQRCodeScreen = ({ navigation, route }) => {
         };
       }
       
-      // If status is 201, it's a success even if parsing had issues
-      // The QR code was generated, we just need to handle the response format
       if (result?.code === 201 || result?.status === 201 || result?.success === true) {
         console.log('✅ QR code generated successfully (201)');
-        // Continue with navigation even if response structure is unexpected
       }
       
-      // Validate that we have QR code data
       if (!result?.data && !result?.qrCode && !result?.qrData && !result?.code) {
         console.warn('⚠️ Response does not contain QR code data');
-        // Still navigate, but the screen should handle missing data
       }
       
       console.log('✅ QR Generated successfully!');
       console.log('📥 QR Code Data:', result?.data || result?.qrCode || result);
    
-      // Safely navigate with error handling
       try {
         navigation.navigate('QRCodeResult', { 
           qrData: {
             ...result,
-            // Preserve original form data for display
-            service: selectedService || 'barrier', // Ensure service is always set
+            service: selectedService || 'barrier', 
             visitorIdentity: selectedVisitorIdentity?.id || selectedVisitorIdentity,
             timePeriod: selectedTimePeriod?.value || selectedTimePeriod,
             address: address || getUserAddress(),
@@ -298,10 +233,8 @@ const GenerateQRCodeScreen = ({ navigation, route }) => {
       }
       
     } catch (error) {
-      // Check if this is actually a success (201 with parsing warning)
       if (error?.status === 201 && error?.data?.success === true) {
         console.log('✅ QR code was generated successfully (201), navigating to result screen');
-        // This is actually a success, just navigate to the result screen
         try {
           navigation.navigate('QRCodeResult', {
             qrData: {
@@ -325,14 +258,13 @@ const GenerateQRCodeScreen = ({ navigation, route }) => {
             [{ text: t('common.ok') || 'OK' }]
           );
         }
-        return; // Exit early since this is actually a success
+        return; 
       }
       
       console.error('❌ Error generating QR code:', error);
       console.error('Error object:', JSON.stringify(error, null, 2));
       console.error('Error stack:', error?.stack);
       
-      // Handle error message - it might be an object with field-specific errors
       let errorMessage = 'Failed to generate QR code. Please try again.';
       
       try {
@@ -340,11 +272,8 @@ const GenerateQRCodeScreen = ({ navigation, route }) => {
           if (typeof error.data.message === 'string') {
             errorMessage = error.data.message;
           } else if (typeof error.data.message === 'object' && error.data.message !== null) {
-            // Extract error messages from validation errors object
-            // Format: { field: "error message", field2: "error message2" }
             const errorMessages = Object.values(error.data.message).filter(msg => msg);
             if (errorMessages.length > 0) {
-              // Join multiple errors or take the first one
               errorMessage = errorMessages.join('\n');
             } else {
               errorMessage = 'Validation failed. Please check your input.';
@@ -362,12 +291,10 @@ const GenerateQRCodeScreen = ({ navigation, route }) => {
         errorMessage = 'An unexpected error occurred. Please try again.';
       }
       
-      // Show alert with error message - ensure it's always a string
       if (typeof errorMessage !== 'string') {
         errorMessage = 'An error occurred. Please try again.';
       }
       
-      // Safely show alert with error handling
       try {
         Alert.alert(
           t('common.error') || 'Error',
@@ -376,7 +303,6 @@ const GenerateQRCodeScreen = ({ navigation, route }) => {
         );
       } catch (alertError) {
         console.error('❌ Error showing alert:', alertError);
-        // Fallback: at least log the error
         console.error('Error message that could not be displayed:', errorMessage);
       }
     }

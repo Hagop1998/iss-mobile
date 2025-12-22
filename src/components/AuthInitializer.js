@@ -2,11 +2,6 @@ import { useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { apiClient } from '../services/api';
 
-/**
- * This component ensures the API client always has the auth token
- * when a user is authenticated. It runs on app startup and whenever
- * the user state changes.
- */
 const AuthInitializer = () => {
   const user = useSelector((state) => state.auth.user);
   const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
@@ -34,7 +29,6 @@ const AuthInitializer = () => {
     }
   }, [user, isAuthenticated, user?.token]);
 
-  // This component doesn't render anything
   return null;
 };
 

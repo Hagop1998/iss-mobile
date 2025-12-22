@@ -14,6 +14,8 @@ import { useAppSelector } from '../store/hooks';
 import { apiService } from '../services/api';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
+import { formatDate, formatPrice } from '../utils/formatters';
+import { getServiceIcon, getServiceColor } from '../utils/serviceHelpers';
 
 const ActiveServicesScreen = ({ navigation }) => {
   const { t } = useTranslation();
@@ -34,32 +36,41 @@ const ActiveServicesScreen = ({ navigation }) => {
       setIsLoading(true);
       console.log('📡 Fetching all subscriptions and user subscriptions...');
       
-      // Fetch all available subscriptions
-      const allSubscriptionsResponse = await apiService.subscriptions.getSubscriptions();
-      console.log('✅ All subscriptions:', allSubscriptionsResponse);
-      
-      // Fetch user's active subscriptions
-      const userSubscriptionsResponse = await apiService.subscriptions.getUserSubscriptions(user.id);
-      console.log('✅ User subscriptions:', userSubscriptionsResponse);
-      
-      // Handle all subscriptions response (paginated or array)
       let allSubs = [];
-      if (Array.isArray(allSubscriptionsResponse)) {
-        allSubs = allSubscriptionsResponse;
-      } else if (Array.isArray(allSubscriptionsResponse?.data)) {
-        allSubs = allSubscriptionsResponse.data;
-      } else if (Array.isArray(allSubscriptionsResponse?.results)) {
-        allSubs = allSubscriptionsResponse.results;
+      try {
+        const allSubscriptionsResponse = await apiService.subscriptions.getSubscriptions();
+        console.log('✅ All subscriptions:', allSubscriptionsResponse);
+        
+        if (Array.isArray(allSubscriptionsResponse)) {
+          allSubs = allSubscriptionsResponse;
+        } else if (Array.isArray(allSubscriptionsResponse?.data)) {
+          allSubs = allSubscriptionsResponse.data;
+        } else if (Array.isArray(allSubscriptionsResponse?.results)) {
+          allSubs = allSubscriptionsResponse.results;
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to fetch all subscriptions:', error);
       }
       
-      // Handle user subscriptions response (single object or array)
       let userSubs = [];
-      if (Array.isArray(userSubscriptionsResponse)) {
-        userSubs = userSubscriptionsResponse;
-      } else if (Array.isArray(userSubscriptionsResponse?.data)) {
-        userSubs = userSubscriptionsResponse.data;
-      } else if (userSubscriptionsResponse && typeof userSubscriptionsResponse === 'object') {
-        userSubs = [userSubscriptionsResponse];
+      try {
+        const userSubscriptionsResponse = await apiService.subscriptions.getUserSubscriptions(user.id);
+        console.log('✅ User subscriptions:', userSubscriptionsResponse);
+        
+        if (Array.isArray(userSubscriptionsResponse)) {
+          userSubs = userSubscriptionsResponse;
+        } else if (Array.isArray(userSubscriptionsResponse?.data)) {
+          userSubs = userSubscriptionsResponse.data;
+        } else if (userSubscriptionsResponse && typeof userSubscriptionsResponse === 'object') {
+          userSubs = [userSubscriptionsResponse];
+        }
+      } catch (error) {
+        if (error?.status === 404 || error?.data?.statusCode === 404) {
+          console.log('ℹ️ User has no subscriptions (404) - treating as empty array');
+          userSubs = [];
+        } else {
+          console.warn('⚠️ Failed to fetch user subscriptions:', error);
+        }
       }
       
       setSubscriptions(allSubs);
@@ -79,56 +90,18 @@ const ActiveServicesScreen = ({ navigation }) => {
     }
   };
 
-  // Check if user has an active subscription for this subscription ID
   const isUserSubscribed = (subscriptionId) => {
     return userSubscriptions.some(userSub => 
       userSub.subscriptionId === subscriptionId || userSub.subscription?.id === subscriptionId
     );
   };
 
-  // Get user subscription details for a specific subscription
   const getUserSubscriptionDetails = (subscriptionId) => {
     return userSubscriptions.find(userSub => 
       userSub.subscriptionId === subscriptionId || userSub.subscription?.id === subscriptionId
     );
   };
 
-  const getServiceIcon = (name) => {
-    const nameLower = name?.toLowerCase() || '';
-    if (nameLower.includes('intercom')) return 'call';
-    if (nameLower.includes('elevator')) return 'business';
-    if (nameLower.includes('camera') || nameLower.includes('security')) return 'videocam';
-    if (nameLower.includes('barrier')) return 'car';
-    return 'settings';
-  };
-
-  const getServiceColor = (name) => {
-    const nameLower = name?.toLowerCase() || '';
-    if (nameLower.includes('intercom')) return colors.blue?.[500] || '#3B82F6';
-    if (nameLower.includes('elevator')) return colors.green?.[500] || '#10B981';
-    if (nameLower.includes('camera') || nameLower.includes('security')) return colors.orange?.[500] || '#F59E0B';
-    if (nameLower.includes('barrier')) return colors.primary || '#3C0056';
-    return colors.gray?.[500] || '#6B7280';
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString();
-    } catch (error) {
-      return 'N/A';
-    }
-  };
-
-  const formatPrice = (price, currency = 'AMD') => {
-    if (!price && price !== 0) return 'N/A';
-    try {
-      return `${Number(price).toLocaleString()} ${currency}`;
-    } catch (error) {
-      return `${price} ${currency}`;
-    }
-  };
 
   const renderServiceCard = (subscription) => {
     const isActive = isUserSubscribed(subscription.id);

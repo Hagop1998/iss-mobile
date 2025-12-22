@@ -1,20 +1,17 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { API_CONFIG } from '../config/env';
 
-// Visitor identity options
 export const visitorIdentities = [
   { id: 'friends_family', name: 'Friends & Family', icon: 'people' },
   { id: 'delivery', name: 'Delivery', icon: 'car' },
 ];
 
-// Time period options for Delivery
 export const deliveryTimePeriods = [
   { id: '2_hours', name: '2 hours', value: 2, unit: 'hours' },
   { id: '4_hours', name: '4 hours', value: 4, unit: 'hours' },
   { id: '8_hours', name: '8 hours', value: 8, unit: 'hours' },
 ];
 
-// Time period options for Friends & Family
 export const friendsFamilyTimePeriods = [
   { id: '24_hours', name: '24 hours', value: 24, unit: 'hours' },
   { id: '1_week', name: '1 week', value: 168, unit: 'hours' },
@@ -22,7 +19,6 @@ export const friendsFamilyTimePeriods = [
   { id: '1_month', name: '1 month', value: 720, unit: 'hours' },
 ];
 
-// Legacy time periods (for backward compatibility)
 export const timePeriods = [
   { id: '2_hours', name: '2 hours', value: 2, unit: 'hours' },
   { id: '4_hours', name: '4 hours', value: 4, unit: 'hours' },
@@ -33,7 +29,6 @@ export const timePeriods = [
   { id: '1_month', name: '1 month', value: 720, unit: 'hours' },
 ];
 
-// Helper function to get time periods based on visitor identity
 export const getTimePeriodsByVisitorType = (visitorIdentityId) => {
   if (visitorIdentityId === 'delivery') {
     return deliveryTimePeriods;
@@ -43,18 +38,15 @@ export const getTimePeriodsByVisitorType = (visitorIdentityId) => {
   return [];
 };
 
-// Service options
 export const services = [
   { id: 'smart_intercom', name: 'Smart Intercom', icon: 'call' },
   { id: 'elevator', name: 'Elevator', icon: 'business' },
   { id: 'barrier', name: 'Barrier', icon: 'car' },
 ];
 
-// Define the base query
 const baseQuery = fetchBaseQuery({
   baseUrl: API_CONFIG.BASE_URL,
   prepareHeaders: (headers, { getState }) => {
-    // Add auth token if available
     const token = getState().auth.user?.token;
     console.log('🔐 QR API - Token check:', {
       hasToken: !!token,
@@ -75,7 +67,6 @@ const baseQuery = fetchBaseQuery({
     
     headers.set('Content-Type', 'application/json');
     
-    // Log all headers being sent
     console.log('📤 QR API Request Headers:', {
       Authorization: headers.get('Authorization') ? 'Bearer ***' : 'Not set',
       'Content-Type': headers.get('Content-Type'),
@@ -85,33 +76,26 @@ const baseQuery = fetchBaseQuery({
   },
 });
 
-// Create the API slice
 export const qrApi = createApi({
   reducerPath: 'qrApi',
   baseQuery,
   tagTypes: ['QRCode', 'QRHistory'],
   endpoints: (builder) => ({
-    // Generate QR Code
     generateQRCode: builder.mutation({
       query: (qrData) => ({
         url: '/middleware/qr_code',
         method: 'POST',
         body: qrData,
         responseHandler: async (response) => {
-          // Check if response is an image
           const contentType = response.headers.get('content-type');
           console.log('📷 Response Content-Type:', contentType);
           
           if (contentType && contentType.includes('image/')) {
             console.log('✅ Detected image response, converting to base64...');
-            // Handle image response - convert to base64 data URL for React Native
             try {
-              // Get arrayBuffer from response
               const arrayBuffer = await response.arrayBuffer();
               const uint8Array = new Uint8Array(arrayBuffer);
               
-              // Convert to base64 (React Native compatible)
-              // Use a simple base64 encoding function
               const base64Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
               let base64 = '';
               let i = 0;
@@ -136,7 +120,7 @@ export const qrApi = createApi({
                 code: response.status,
                 status: response.status,
                 success: true,
-                imageData: base64DataUrl, // base64 data URL (data:image/jpeg;base64,...)
+                imageData: base64DataUrl, 
                 imageType: contentType,
               };
             } catch (error) {
@@ -145,7 +129,6 @@ export const qrApi = createApi({
             }
           }
           
-          // Handle JSON response (fallback)
           console.log('📄 Handling as JSON response...');
           try {
             const text = await response.text();
@@ -166,7 +149,6 @@ export const qrApi = createApi({
         console.log('Response type:', typeof response);
         console.log('Has imageData:', !!response?.imageData);
         
-        // If response contains image data (from responseHandler), return it directly
         if (response?.imageData) {
           console.log('✅ QR Code image received:', {
             imageType: response.imageType,
@@ -183,15 +165,12 @@ export const qrApi = createApi({
           };
         }
         
-        // Handle JSON responses (fallback)
         let responseData = response;
         
-        // If response has a data property, use it
         if (response && typeof response === 'object' && 'data' in response) {
           responseData = response.data;
         }
         
-        // If responseData is a string, try to parse it
         if (typeof responseData === 'string') {
           try {
             responseData = JSON.parse(responseData);
@@ -200,7 +179,6 @@ export const qrApi = createApi({
           }
         }
         
-        // Check HTTP status first - 201/200 is success
         if (httpStatus === 201 || httpStatus === 200) {
           console.log(`✅ HTTP ${httpStatus} - QR code generated successfully`);
           return {
@@ -212,7 +190,6 @@ export const qrApi = createApi({
           };
         }
         
-        // Check if response indicates an error
         const responseCode = responseData?.code || httpStatus;
         if (responseCode && responseCode !== 200 && responseCode !== 201) {
           console.error('❌ API returned error code:', responseCode, responseData?.msg || responseData?.message);
@@ -234,11 +211,8 @@ export const qrApi = createApi({
         console.error('Error type:', typeof response);
         console.error('Error data:', response?.data);
         
-        // Handle parsing errors (status 201 but parsing failed)
         if (meta?.response?.status === 201 && response?.error?.includes('Cannot read property')) {
           console.warn('⚠️ Parsing error detected - API returned 201 but response parsing failed');
-          // The QR code was likely generated successfully, but response format is unexpected
-          // Return a success response with a note about parsing
           return {
             status: 201,
             data: {
@@ -250,7 +224,6 @@ export const qrApi = createApi({
           };
         }
         
-        // Handle both HTTP errors and custom error codes
         const errorData = response?.data || response;
         
         return {
@@ -265,18 +238,15 @@ export const qrApi = createApi({
       invalidatesTags: ['QRHistory'],
     }),
 
-    // Share QR Code
     shareQRCode: builder.mutation({
-      // Mock implementation for now
       async queryFn(qrData, { dispatch }) {
         try {
-          // Simulate API delay
           await new Promise(resolve => setTimeout(resolve, 1000));
           
           return { 
             data: { 
               success: true, 
-              shareUrl: `https://qr.issapp.com/${qrData.id}` 
+              shareUrl: `https://qr.issapp.com/${qrData.id || 'qr'}`,
             } 
           };
         } catch (error) {
@@ -285,12 +255,9 @@ export const qrApi = createApi({
       },
     }),
 
-    // Get QR History
     getQRHistory: builder.query({
-      // Mock implementation for now
       async queryFn(userId, { dispatch }) {
         try {
-          // Simulate API delay
           await new Promise(resolve => setTimeout(resolve, 1000));
           
           const mockHistory = [
@@ -322,13 +289,11 @@ export const qrApi = createApi({
       providesTags: ['QRHistory'],
     }),
 
-    // Get QR Code by ID
     getQRCode: builder.query({
       query: (id) => `qr/${id}`,
       providesTags: (result, error, id) => [{ type: 'QRCode', id }],
     }),
 
-    // Delete QR Code
     deleteQRCode: builder.mutation({
       query: (id) => ({
         url: `qr/${id}`,
@@ -339,7 +304,6 @@ export const qrApi = createApi({
   }),
 });
 
-// Export hooks for usage in functional components
 export const {
   useGenerateQRCodeMutation,
   useShareQRCodeMutation,

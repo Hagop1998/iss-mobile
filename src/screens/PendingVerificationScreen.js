@@ -20,17 +20,14 @@ const PendingVerificationScreen = ({ navigation }) => {
   const errorCountRef = useRef(0);
   const lastErrorLogRef = useRef(0);
 
-  // Check verification status from Redux state
   useEffect(() => {
     const isVerified = user?.isVerified === true || user?.isVerified === 'true';
     if (isVerified) {
-      // Clear polling interval
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
       }
       
-      // Navigate to Home screen
       navigation.reset({
         index: 0,
         routes: [{ name: 'Home' }],
@@ -38,24 +35,19 @@ const PendingVerificationScreen = ({ navigation }) => {
     }
   }, [user?.isVerified, navigation]);
 
-  // Check verification status immediately and then poll periodically
   useEffect(() => {
     const checkVerificationStatus = async () => {
       try {
         await dispatch(checkAuthStatus()).unwrap();
-        // Reset error count on success
         errorCountRef.current = 0;
-        // State will be updated by the reducer, which will trigger the above useEffect
       } catch (error) {
         errorCountRef.current += 1;
         
-        // Only log errors occasionally to avoid spam (every 6th error or first error)
         const now = Date.now();
         const shouldLog = errorCountRef.current === 1 || 
                          (errorCountRef.current % 6 === 0 && now - lastErrorLogRef.current > 30000);
         
         if (shouldLog) {
-          // Only log if it's a server error (5xx), not network errors
           const errorMessage = error?.message || String(error);
           if (errorMessage.includes('500') || errorMessage.includes('server')) {
             console.warn(`⚠️ Verification status check failed (attempt ${errorCountRef.current}). Server error. Continuing to check...`);
@@ -65,9 +57,7 @@ const PendingVerificationScreen = ({ navigation }) => {
           lastErrorLogRef.current = now;
         }
         
-        // If we have too many consecutive errors, increase polling interval
         if (errorCountRef.current > 10) {
-          // Clear current interval and restart with longer delay (30 seconds)
           if (pollingIntervalRef.current) {
             clearInterval(pollingIntervalRef.current);
             pollingIntervalRef.current = setInterval(checkVerificationStatus, 30000);
@@ -76,13 +66,10 @@ const PendingVerificationScreen = ({ navigation }) => {
       }
     };
 
-    // Check immediately
     checkVerificationStatus();
 
-    // Poll every 5 seconds initially
     pollingIntervalRef.current = setInterval(checkVerificationStatus, 5000);
 
-    // Cleanup on unmount
     return () => {
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);

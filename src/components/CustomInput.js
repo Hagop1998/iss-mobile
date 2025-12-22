@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text.primary,
     backgroundColor: colors.white,
-    paddingRight: 50, // Space for icons
+    paddingRight: 50, 
   },
   inputFocused: {
     borderColor: colors.primary,

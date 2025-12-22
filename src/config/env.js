@@ -1,9 +1,6 @@
-// Environment Configuration
-// This file reads from .env file and provides typed configuration
 
 export const API_CONFIG = {
   BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'http://138.68.88.206:9001',
-  // BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'https://3wqx9scw-9001.euw.devtunnels.ms',
   TIMEOUT: parseInt(process.env.EXPO_PUBLIC_API_TIMEOUT) || 10000,
   HEADERS: {
     'Content-Type': 'application/json',
@@ -22,7 +19,7 @@ export const FEATURE_FLAGS = {
   ENABLE_PIN_ACCESS: process.env.EXPO_PUBLIC_ENABLE_PIN_ACCESS === 'true',
   ENABLE_QR_ACCESS: process.env.EXPO_PUBLIC_ENABLE_QR_ACCESS === 'true',
   ENABLE_CAMERA: process.env.EXPO_PUBLIC_ENABLE_CAMERA === 'true',
-  ENABLE_BARRIER: false, // Coming soon
+  ENABLE_BARRIER: false, 
 };
 
 export const CAMERA_CONFIG = {
@@ -41,7 +38,6 @@ export const DEBUG_CONFIG = {
   ENABLE_REDUX_LOGGER: __DEV__,
 };
 
-// API Endpoints
 export const API_ENDPOINTS = {
   AUTH: {
     REGISTER: '/auth/register',

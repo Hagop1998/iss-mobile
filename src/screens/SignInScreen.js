@@ -35,8 +35,6 @@ const SignInScreen = ({ navigation }) => {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      // Check if user is verified, if not redirect to pending verification screen
-      // Handle both boolean true and string "true"
       const isVerified = user.isVerified === true || user.isVerified === 'true';
       
       console.log('🔍 SignInScreen - Verification Check:', {
@@ -67,7 +65,6 @@ const SignInScreen = ({ navigation }) => {
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
-    // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: null }));
     }
@@ -117,12 +114,7 @@ const SignInScreen = ({ navigation }) => {
   };
 
   const handleSignIn = async () => {
-    console.log('╔═══════════════════════════════════════════════════════════╗');
-    console.log('║  🚀 SIGN IN BUTTON PRESSED                               ║');
-    console.log('╚═══════════════════════════════════════════════════════════╝');
-    console.log('Form data:', { email: formData.email, password: '***' });
-    
-    // Validate all fields
+ 
     const emailValid = validateField('email', formData.email);
     const passwordValid = validateField('password', formData.password);
 
@@ -141,10 +133,8 @@ const SignInScreen = ({ navigation }) => {
     try {
       const result = await dispatch(signInUser({ email: formData.email, password: formData.password })).unwrap();
       console.log('✅ Sign in successful! Result:', result);
-      // navigation handled by useEffect on isAuthenticated
     } catch (e) {
       console.error('❌ Sign in failed:', e);
-      // error handled by effect
     } finally {
       setLoading(false);
     }

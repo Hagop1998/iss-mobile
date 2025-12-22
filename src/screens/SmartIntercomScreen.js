@@ -30,7 +30,6 @@ const SmartIntercomScreen = ({ navigation }) => {
       icon: 'keypad',
       iconColor: colors.green[500],
       onPress: () => {
-        // TODO: Navigate to PIN access screen
         navigation.navigate('PinAccess', { service: 'smart_intercom' });
       },
     },
@@ -41,7 +40,6 @@ const SmartIntercomScreen = ({ navigation }) => {
       icon: 'person',
       iconColor: colors.orange[500],
       onPress: () => {
-        // TODO: Navigate to face recognition screen
         navigation.navigate('FaceRecognition', { service: 'smart_intercom' });
       },
     },

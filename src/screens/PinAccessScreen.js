@@ -14,10 +14,13 @@ import * as Clipboard from 'expo-clipboard';
 import { colors } from '../constants/colors';
 import apiService from '../services/api';
 import { AuthCodeTypeEnum } from '../constants/enums';
+import { useAppSelector } from '../store/hooks';
+import { getLocalIdByService } from '../utils/userHelpers';
 
 const PinAccessScreen = ({ navigation, route }) => {
   const { t } = useTranslation();
   const { service } = route?.params || {};
+  const { user } = useAppSelector(state => state.auth);
   const [authCode, setAuthCode] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -31,10 +34,9 @@ const PinAccessScreen = ({ navigation, route }) => {
       setIsLoading(true);
       setError(null);
 
-      // Use static localId for now
-      const localId = '2136131714170315';
+      const serviceType = service || 'smart_intercom'; 
+      const localId = getLocalIdByService(serviceType, user);
       
-      // Use TWENTY_FOUR_HOURS (3) as the type based on Swagger example
       const type = AuthCodeTypeEnum.TWENTY_FOUR_HOURS;
 
       console.log('📤 Sending auth code request:', {
@@ -43,7 +45,6 @@ const PinAccessScreen = ({ navigation, route }) => {
         service,
       });
 
-      // Call the middleware auth_code endpoint
       const response = await apiService.middleware.getAuthCode({
         localId,
         type,
@@ -51,9 +52,6 @@ const PinAccessScreen = ({ navigation, route }) => {
 
       console.log('✅ Auth code response:', JSON.stringify(response, null, 2));
 
-      // Extract the code from response
-      // Response structure: { status: "ok", data: { code: 10000, msg: "ok", data: { code: "57542692" } } }
-      // Or: response.data.data.data.code
       const code = response?.data?.data?.data?.code || 
                    response?.data?.data?.code || 
                    response?.data?.code ||
@@ -70,7 +68,6 @@ const PinAccessScreen = ({ navigation, route }) => {
     } catch (error) {
       console.error('❌ Error getting auth code:', error);
       
-      // Extract error message
       const errorMessage = 
         error?.response?.data?.message ||
         error?.response?.data?.error ||

@@ -1,5 +1,5 @@
 export const colors = {
-  primary: '#3C0056', // Purple (matches logo)
+  primary: '#3C0056', 
   primaryLight: '#5A007F',
   primaryDark: '#2A003D',
   secondary: '#F3F4F6',

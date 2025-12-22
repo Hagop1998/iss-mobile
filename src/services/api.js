@@ -1,16 +1,12 @@
-// API Configuration and Base Service
 import { API_CONFIG } from '../config/env';
 
-// API Configuration
 export const apiConfig = {
   baseURL: API_CONFIG.BASE_URL,
   timeout: API_CONFIG.TIMEOUT,
   headers: API_CONFIG.HEADERS,
 };
 
-// API Endpoints
 export const endpoints = {
-  // Auth endpoints
   auth: {
     signUp: '/auth/register',
     signIn: '/auth/login',
@@ -23,27 +19,24 @@ export const endpoints = {
     resetPassword: '/auth/reset-password',
   },
   
-  // User endpoints
   user: {
     profile: '/user/profile',
     updateProfile: '/user/profile',
-    updateUser: '/users', // PATCH /users/{id}
+    updateUser: '/users',
     changePassword: '/users/change-password',
     deleteAccount: '/user/delete',
-    getAllUsers: '/users', // GET /users - Get all users
-    search: '/search', // GET /search?email=...&phone=...
-    inviteFamilyMember: '/users/invite-family-member', // POST /users/invite-family-member/{userId}
-    removeFamilyMember: '/users/remove-family-member', // DELETE /users/remove-family-member/{id}
+    getAllUsers: '/users',
+    search: '/search',
+    inviteFamilyMember: '/users/invite-family-member',
+    removeFamilyMember: '/users/remove-family-member',
   },
   
-  // Verification endpoints
   verification: {
     sendCode: '/verification/send',
     verifyCode: '/verification/verify',
     resendCode: '/verification/resend',
   },
   
-  // Home/Features endpoints
   home: {
     locations: '/home/locations',
     features: '/home/features',
@@ -53,57 +46,56 @@ export const endpoints = {
     barrier: '/home/barrier',
   },
   
-  // QR Codes endpoints
   qr: {
     generate: '/middleware/qr_code',
     scan: '/qr/scan',
     history: '/qr/history',
   },
   
-  // Middleware endpoints
   middleware: {
     authCode: '/middleware/auth_code',
     unlock: '/middleware/unlock',
     regFace: '/middleware/reg_face',
   },
   
-  // Media endpoints
   media: {
     upload: '/medias/upload',
   },
   
-  // Services endpoints
   services: {
     list: '/services',
     request: '/services/request',
     history: '/services/history',
   },
   
-  // Notifications endpoints
   notifications: {
     list: '/notifications',
     markRead: '/notifications/mark-read',
     settings: '/notifications/settings',
   },
   
-  // Address endpoints
   address: {
     list: '/address',
   },
   
-  // Subscriptions endpoints
   subscriptions: {
-    list: '/subscriptions', // GET /subscriptions - Get all available subscriptions
-    userSubscriptions: '/subscriptions/user-subscriptions', // GET /subscriptions/user-subscriptions/{id}
+    list: '/subscriptions',
+    userSubscriptions: '/subscriptions/user-subscriptions',
   },
   
-  // Family members endpoints
   family: {
-    remove: '/family/remove', // DELETE /family/remove/{memberId}
+    remove: '/family/remove',
+  },
+  
+  devices: {
+    list: '/devices',
+    getDevice: '/devices',
+    create: '/devices',
+    update: '/devices',
+    delete: '/devices',
   },
 };
 
-// HTTP Client (fetch-based)
 class ApiClient {
   constructor(config) {
     this.baseURL = config.baseURL;
@@ -119,7 +111,6 @@ class ApiClient {
       const requestHeaders = { ...this.headers, ...headers };
       const isLoginApi = url.includes('/auth/login');
       
-      // Enhanced logging for login API in request method
       if (isLoginApi) {
         console.log('═══════════════════════════════════════════════════════════');
         console.log('🌐 LOGIN API REQUEST (from ApiClient.request)');
@@ -165,7 +156,6 @@ class ApiClient {
       const isJson = contentType.includes('application/json');
       const parsed = isJson ? await res.json() : await res.text();
 
-      // Special logging for login API response
       if (isLoginApi) {
         console.log('═══════════════════════════════════════════════════════════');
         console.log('🔐 LOGIN API RESPONSE RECEIVED');
@@ -194,12 +184,9 @@ class ApiClient {
       }
 
       if (!res.ok) {
-        // Special error logging for login API
         if (isLoginApi) {
           console.log('═══════════════════════════════════════════════════════════');
         } else {
-          // Surface server error for debugging
-          // eslint-disable-next-line no-console
           console.warn('⚠️ API error', { 
             url: `${this.baseURL}${url}`, 
             status: res.status, 
@@ -234,17 +221,14 @@ class ApiClient {
     return this.request('DELETE', url, options);
   }
 
-  // Upload file with multipart/form-data
   async uploadFile(url, formData, options = {}) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeout);
 
     try {
       const requestHeaders = { ...this.headers };
-      // Remove Content-Type header to let browser set it with boundary for multipart/form-data
       delete requestHeaders['Content-Type'];
       
-      // Merge any additional headers from options
       const headers = { ...requestHeaders, ...options.headers };
 
       console.log('📤 File Upload Request:', {
@@ -286,23 +270,18 @@ class ApiClient {
     }
   }
 
-  // Set authorization token
   setAuthToken(token) {
     this.headers.Authorization = `Bearer ${token}`;
   }
 
-  // Remove authorization token
   removeAuthToken() {
     delete this.headers.Authorization;
   }
 }
 
-// Create API client instance
 export const apiClient = new ApiClient(apiConfig);
 
-// API Service functions (ready for backend integration)
 export const apiService = {
-  // Auth services
   auth: {
     signUp: (userData) => apiClient.post(endpoints.auth.signUp, userData),
     signIn: (credentials) => {
@@ -331,7 +310,6 @@ export const apiService = {
     resetPassword: (data) => apiClient.post(endpoints.auth.resetPassword, data),
   },
 
-  // User services
   user: {
     getProfile: () => apiClient.get(endpoints.user.profile),
     updateProfile: (data) => apiClient.put(endpoints.user.updateProfile, data),
@@ -366,14 +344,12 @@ export const apiService = {
     },
   },
 
-  // Verification services
   verification: {
     sendCode: (phoneNumber) => apiClient.post(endpoints.verification.sendCode, { phoneNumber }),
     verifyCode: (data) => apiClient.post(endpoints.verification.verifyCode, data),
     resendCode: (phoneNumber) => apiClient.post(endpoints.verification.resendCode, { phoneNumber }),
   },
 
-  // Home services
   home: {
     getLocations: () => apiClient.get(endpoints.home.locations),
     getFeatures: () => apiClient.get(endpoints.home.features),
@@ -383,21 +359,18 @@ export const apiService = {
     controlBarrier: (data) => apiClient.post(endpoints.home.barrier, data),
   },
 
-  // QR Code services
   qr: {
     generateQR: (data) => apiClient.post(endpoints.qr.generate, data),
     scanQR: (data) => apiClient.post(endpoints.qr.scan, data),
     getHistory: () => apiClient.get(endpoints.qr.history),
   },
 
-  // Services
   services: {
     getServices: () => apiClient.get(endpoints.services.list),
     requestService: (data) => apiClient.post(endpoints.services.request, data),
     getHistory: () => apiClient.get(endpoints.services.history),
   },
 
-  // Notifications
   notifications: {
     getNotifications: () => apiClient.get(endpoints.notifications.list),
     markAsRead: (id) => apiClient.post(endpoints.notifications.markRead, { id }),
@@ -405,31 +378,34 @@ export const apiService = {
     updateSettings: (data) => apiClient.put(endpoints.notifications.settings, data),
   },
 
-  // Address
   address: {
     getAddresses: () => apiClient.get(endpoints.address.list),
   },
 
-  // Subscriptions
   subscriptions: {
     getSubscriptions: () => apiClient.get(endpoints.subscriptions.list),
     getUserSubscriptions: (userId) => apiClient.get(`${endpoints.subscriptions.userSubscriptions}/${userId}`),
   },
 
-  // Family members
   family: {
     invite: (userId, data) => apiService.user.inviteFamilyMember(userId, data),
     removeMember: (id) => apiService.user.removeFamilyMember(id),
   },
 
-  // Middleware services
+  devices: {
+    getDevices: () => apiClient.get(endpoints.devices.list),
+    getDevice: (deviceId) => apiClient.get(`${endpoints.devices.getDevice}/${deviceId}`),
+    createDevice: (data) => apiClient.post(endpoints.devices.create, data),
+    updateDevice: (deviceId, data) => apiClient.request('PATCH', `${endpoints.devices.update}/${deviceId}`, { data }),
+    deleteDevice: (deviceId) => apiClient.delete(`${endpoints.devices.delete}/${deviceId}`),
+  },
+
   middleware: {
     getAuthCode: (data) => apiClient.post(endpoints.middleware.authCode, data),
     unlock: (data) => apiClient.post(endpoints.middleware.unlock, data),
     regFace: (data) => apiClient.post(endpoints.middleware.regFace, data),
   },
 
-  // Media services
   media: {
     upload: (formData) => apiClient.uploadFile(endpoints.media.upload, formData),
   },

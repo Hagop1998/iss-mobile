@@ -1,6 +1,5 @@
 import { createSlice } from '@reduxjs/toolkit';
 
-// Initial state - only local UI state, no API state
 const initialState = {
   selectedService: null,
   selectedVisitorIdentity: null,
@@ -8,7 +7,6 @@ const initialState = {
   address: '',
 };
 
-// QR slice - only for local UI state
 const qrSlice = createSlice({
   name: 'qr',
   initialState,

@@ -38,7 +38,6 @@ const SignUpScreen = ({ navigation }) => {
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
-    // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: null }));
     }
@@ -99,7 +98,6 @@ const SignUpScreen = ({ navigation }) => {
   };
 
   const handleSignUp = async () => {
-    // Validate all fields
     const phoneValid = validateField('phoneNumber', formData.phoneNumber);
     const emailValid = validateField('email', formData.email);
     const passwordValid = validateField('password', formData.password);
@@ -114,7 +112,6 @@ const SignUpScreen = ({ navigation }) => {
 
     setLoading(true);
     try {
-      // Register the user
       await dispatch(signUpUser({
         firstName: formData.firstName,
         lastName: formData.lastName,
@@ -125,13 +122,11 @@ const SignUpScreen = ({ navigation }) => {
         bio: '',
       })).unwrap();
       
-      // Auto-login after successful registration
       await dispatch(signInUser({
         email: formData.email,
         password: formData.password,
       })).unwrap();
       
-      // Navigate to PendingVerificationScreen (user will be verified by admin)
       navigation.reset({
         index: 0,
         routes: [{ name: 'PendingVerification' }],

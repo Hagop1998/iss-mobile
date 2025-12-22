@@ -1,6 +1,5 @@
 import { createSlice } from '@reduxjs/toolkit';
 
-// Initial state
 const initialState = {
   language: 'en',
   theme: 'light',
@@ -23,7 +22,6 @@ const initialState = {
   },
 };
 
-// App slice
 const appSlice = createSlice({
   name: 'app',
   initialState,

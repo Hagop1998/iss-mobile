@@ -93,6 +93,7 @@ const styles = StyleSheet.create({
   tab: {
     flex: 1,
     alignItems: 'center',
+    whiteSpace: 'nowrap',
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 12,
@@ -105,6 +106,8 @@ const styles = StyleSheet.create({
     color: colors.gray[400],
     marginTop: 4,
     fontWeight: '500',
+    whiteSpace: 'nowrap',
+    textAlign: 'center',
   },
   activeTabText: {
     color: colors.white,

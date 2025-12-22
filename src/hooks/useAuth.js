@@ -2,10 +2,6 @@ import React, { useEffect, useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { checkAuthStatus } from '../store/slices/authSlice';
 
-/**
- * Custom hook to access authentication state and actions
- * This hook automatically verifies auth status when the app loads
- */
 export const useAuth = () => {
   const dispatch = useAppDispatch();
   const { user, isAuthenticated, isLoading, error } = useAppSelector(
@@ -23,7 +19,6 @@ export const useAuth = () => {
     hasError: !!error,
   });
 
-  // Function to manually check auth status
   const verifyAuthStatus = useCallback(() => {
     console.log('🔍 Manual auth status verification requested');
     if (isAuthenticated) {
@@ -31,12 +26,10 @@ export const useAuth = () => {
       return dispatch(checkAuthStatus());
     } else {
       console.log('User is not authenticated, skipping status check');
-      return Promise.resolve(); // Return resolved promise to avoid undefined
+      return Promise.resolve(); 
     }
   }, [dispatch, isAuthenticated]);
 
-  // Auto-verify auth status on mount if user is authenticated
-  // Only check once on initial mount, not on every re-render
   const hasCheckedAuth = React.useRef(false);
   useEffect(() => {
     console.log('🔄 useAuth mounted/updated');
@@ -46,7 +39,6 @@ export const useAuth = () => {
       const authCheckPromise = verifyAuthStatus();
       if (authCheckPromise && typeof authCheckPromise.catch === 'function') {
         authCheckPromise.catch((error) => {
-          // Silently handle auth check errors - don't break the app
           console.warn('⚠️ Auth status check failed, but continuing:', error);
         });
       }

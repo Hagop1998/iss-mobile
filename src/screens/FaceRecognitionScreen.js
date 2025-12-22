@@ -20,6 +20,7 @@ import { apiService } from '../services/api';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { imageSizeEnum, entityTypeEnum } from '../constants/enums';
+import { getLocalIdByService } from '../utils/userHelpers';
 
 const FaceRecognitionScreen = ({ navigation, route }) => {
   const { t } = useTranslation();
@@ -28,22 +29,19 @@ const FaceRecognitionScreen = ({ navigation, route }) => {
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [isScanning, setIsScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
-  const [recognitionStatus, setRecognitionStatus] = useState('idle'); // idle, scanning, analyzing, success, failed
+  const [recognitionStatus, setRecognitionStatus] = useState('idle'); 
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [mountError, setMountError] = useState(null);
   const isFocused = useIsFocused();
   
-  // Get logged-in user from Redux
   const { user } = useAppSelector(state => state.auth);
   
-  // Static values
-  const LOCAL_ID = '2136131714170315';
+  const serviceType = service || 'smart_intercom'; 
+  const LOCAL_ID = getLocalIdByService(serviceType, user);
   
-  // Animation values
   const scanAnimation = useRef(new Animated.Value(0)).current;
   const pulseAnimation = useRef(new Animated.Value(1)).current;
 
-  // Request camera permissions
   useEffect(() => {
     (async () => {
       try {
@@ -56,7 +54,6 @@ const FaceRecognitionScreen = ({ navigation, route }) => {
     })();
   }, [cameraPermission, requestCameraPermission]);
 
-  // Camera ready timeout
   useEffect(() => {
     if (isFocused && cameraPermission?.granted) {
       const timeout = setTimeout(() => {
@@ -69,10 +66,8 @@ const FaceRecognitionScreen = ({ navigation, route }) => {
     }
   }, [isFocused, cameraPermission, isCameraReady]);
 
-  // Scanning animation
   useEffect(() => {
     if (isScanning) {
-      // Scan line animation
       Animated.loop(
         Animated.sequence([
           Animated.timing(scanAnimation, {
@@ -88,7 +83,6 @@ const FaceRecognitionScreen = ({ navigation, route }) => {
         ])
       ).start();
 
-      // Pulse animation
       Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnimation, {
@@ -109,7 +103,6 @@ const FaceRecognitionScreen = ({ navigation, route }) => {
     }
   }, [isScanning]);
 
-  // Generate random cardSN
   const generateRandomCardSN = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let result = '';
@@ -122,20 +115,17 @@ const FaceRecognitionScreen = ({ navigation, route }) => {
   const handleStartScan = () => {
     console.log('👤 Starting face recognition scan...');
     
-    // Check if user is logged in
     if (!user?.id) {
       Alert.alert('Error', 'Please login to register your face.');
       navigation.goBack();
       return;
     }
 
-    // Check camera permissions
     if (!cameraPermission?.granted) {
       Alert.alert('Camera Permission Required', 'Please grant camera permission to capture your face.');
       return;
     }
 
-    // Start scanning mode - show camera preview, user can position face
     setIsScanning(true);
     setRecognitionStatus('scanning');
     setScanProgress(0);
@@ -145,14 +135,12 @@ const FaceRecognitionScreen = ({ navigation, route }) => {
     try {
       console.log('📸 Capturing photo for face registration...');
       
-      // Check if user is logged in
       if (!user?.id) {
         Alert.alert('Error', 'Please login to register your face.');
         navigation.goBack();
         return;
       }
 
-      // Check camera permissions
       if (!cameraPermission?.granted) {
         Alert.alert('Camera Permission Required', 'Please grant camera permission to capture your face.');
         return;
@@ -161,21 +149,18 @@ const FaceRecognitionScreen = ({ navigation, route }) => {
       setScanProgress(10);
       setRecognitionStatus('analyzing');
 
-      // Step 1: Capture photo from front camera
       console.log('📸 Capturing photo...');
       console.log('Camera ref:', !!cameraRef.current);
       console.log('Camera ready:', isCameraReady);
       console.log('Camera permission:', cameraPermission?.granted);
       console.log('Is focused:', isFocused);
       
-      // Wait a bit to ensure camera is fully ready (only if using CameraView)
       if (cameraRef.current && isCameraReady) {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
 
       let photo;
       
-      // Try to capture from CameraView first
       try {
         if (cameraRef.current && isCameraReady) {
           console.log('📸 Attempting to capture from CameraView...');
@@ -190,9 +175,7 @@ const FaceRecognitionScreen = ({ navigation, route }) => {
       } catch (captureError) {
         console.warn('📸 CameraView capture failed, trying ImagePicker fallback...', captureError?.message);
         
-        // Fallback to ImagePicker (works better in Expo Go on iOS)
         try {
-          // Request camera permissions for ImagePicker
           const { status } = await ImagePicker.requestCameraPermissionsAsync();
           
           if (status !== 'granted') {
@@ -204,7 +187,7 @@ const FaceRecognitionScreen = ({ navigation, route }) => {
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: false,
             quality: 0.8,
-            cameraType: ImagePicker.CameraType.front, // Use front camera
+            cameraType: ImagePicker.CameraType.front, 
           });
 
           if (result.canceled) {
@@ -215,7 +198,6 @@ const FaceRecognitionScreen = ({ navigation, route }) => {
             throw new Error('No photo was captured');
           }
 
-          // Convert ImagePicker result to match CameraView format
           photo = {
             uri: result.assets[0].uri,
             width: result.assets[0].width,
@@ -239,24 +221,19 @@ const FaceRecognitionScreen = ({ navigation, route }) => {
       setScanProgress(20);
       setRecognitionStatus('analyzing');
 
-      // Step 2: Crop and resize image to focus on face area
-      // Crop from center-upper portion to focus on face (not full body)
       const originalWidth = photo.width;
       const originalHeight = photo.height;
       
-      // Calculate crop area: focus on upper-center portion (where face is)
-      // Crop 60% from top, 20% from each side, 40% from bottom
-      const cropX = originalWidth * 0.2; // Start 20% from left
-      const cropY = originalHeight * 0.1; // Start 10% from top (focus on upper body/face)
-      const cropWidth = originalWidth * 0.6; // Take 60% width (center portion)
-      const cropHeight = originalHeight * 0.5; // Take 50% height (upper portion)
+      const cropX = originalWidth * 0.2; 
+      const cropY = originalHeight * 0.1; 
+      const cropWidth = originalWidth * 0.6; 
+      const cropHeight = originalHeight * 0.5; 
       
       console.log('✂️ Cropping image to focus on face area...');
       console.log(`   Crop area: x=${cropX}, y=${cropY}, width=${cropWidth}, height=${cropHeight}`);
       
       let resizedPhoto;
       try {
-        // First crop to face area, then resize to 640x480 (backend recommended size)
         resizedPhoto = await ImageManipulator.manipulateAsync(
           photo.uri,
           [
@@ -268,11 +245,11 @@ const FaceRecognitionScreen = ({ navigation, route }) => {
                 height: cropHeight,
               },
             },
-            { resize: { width: 800, height: 800 } }, // Backend recommended size
+            { resize: { width: 800, height: 800 } }, 
           ],
           {
             compress: 0.8,
-            format: ImageManipulator.SaveFormat.JPEG, // Ensure JPG format
+            format: ImageManipulator.SaveFormat.JPEG, 
           }
         );
         
@@ -282,44 +259,35 @@ const FaceRecognitionScreen = ({ navigation, route }) => {
       } catch (resizeError) {
         console.error('❌ Error cropping/resizing image on frontend:', resizeError);
         console.error('❌ Resize error details:', JSON.stringify(resizeError, null, 2));
-        // Don't fallback - throw error so user knows resize failed
         throw new Error(`Failed to process image: ${resizeError?.message || 'Unknown error'}`);
       }
 
       setScanProgress(30);
       
-      // Step 3: Upload photo to /medias/upload
       console.log('📤 Uploading photo to server...');
       
-      // Create FormData for multipart/form-data
       const formData = new FormData();
       
-      // Get file name from URI
       const filename = resizedPhoto.uri.split('/').pop() || 'face.jpg';
-      const fileExtension = 'jpg'; // Always JPG format
+      const fileExtension = 'jpg'; 
       
-      // Add file to FormData
       formData.append('file', {
         uri: resizedPhoto.uri,
         type: `image/jpeg`,
         name: `face.${fileExtension}`,
       });
       
-      // Add source using entityTypeEnum (REG_FACE for face recognition)
       formData.append('source', entityTypeEnum.REG_FACE);
 
-      // Upload file
       const uploadResponse = await apiService.media.upload(formData);
       console.log('📥 Upload response:', uploadResponse);
       
       setScanProgress(60);
 
-      // Extract the response string (could be in different formats)
       let face1String = '';
       if (typeof uploadResponse === 'string') {
         face1String = uploadResponse;
       } else if (uploadResponse?.data) {
-        // Handle nested data object
         if (typeof uploadResponse.data === 'string') {
           face1String = uploadResponse.data;
         } else {
@@ -330,7 +298,6 @@ const FaceRecognitionScreen = ({ navigation, route }) => {
                        '';
         }
       } else if (uploadResponse?.imageUrl || uploadResponse?.url || uploadResponse?.file || uploadResponse?.id) {
-        // Check imageUrl first (most common response format)
         face1String = uploadResponse.imageUrl || 
                       uploadResponse.url || 
                       uploadResponse.file || 
@@ -345,10 +312,8 @@ const FaceRecognitionScreen = ({ navigation, route }) => {
       console.log('✅ File uploaded, face1 string:', face1String);
       setScanProgress(70);
 
-      // Step 4: Register face with /middleware/reg_face
       console.log('📝 Registering face...');
       
-      // Generate random cardSN
       const cardSN = generateRandomCardSN();
       console.log('🎴 Generated cardSN:', cardSN);
 
@@ -390,13 +355,11 @@ const FaceRecognitionScreen = ({ navigation, route }) => {
         setRecognitionStatus('failed');
         setIsScanning(false);
         
-      // Extract error message from various possible formats
       let errorMessage = 'Failed to register face. Please try again.';
       
       if (error?.message) {
         errorMessage = error.message;
       } else if (error?.data?.message) {
-        // Handle nested message object (e.g., {"size": "size must be one of..."})
         if (typeof error.data.message === 'object') {
           const messages = Object.values(error.data.message).join(', ');
           errorMessage = messages || errorMessage;
@@ -426,7 +389,6 @@ const FaceRecognitionScreen = ({ navigation, route }) => {
       }
   };
 
-  // Permission denied screen
   if (cameraPermission && !cameraPermission.granted) {
   return (
     <SafeAreaView style={styles.container}>
@@ -692,9 +654,8 @@ const styles = StyleSheet.create({
   },
   cameraView: {
     flex: 1,
-    transform: [{ scale: 1.3 }], // Moderate zoom to focus on face area
+    transform: [{ scale: 1.3 }], 
   },
-  // Dark overlay mask to show only frame area
   overlayMask: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 1,

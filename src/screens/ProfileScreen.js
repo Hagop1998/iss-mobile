@@ -94,9 +94,8 @@ const ProfileScreen = ({ navigation }) => {
     );
   };
 
-  // Support/Contact functions
   const SUPPORT_PHONE = '+37441051020';
-  const SUPPORT_PHONE_CLEAN = '37441051020'; // Without + for some apps
+  const SUPPORT_PHONE_CLEAN = '37441051020'; 
 
   const handleCall = async () => {
     const phoneUrl = `tel:${SUPPORT_PHONE}`;
@@ -122,7 +121,6 @@ const ProfileScreen = ({ navigation }) => {
       if (canOpen) {
         await Linking.openURL(whatsappUrl);
       } else {
-        // Fallback to web version
         await Linking.openURL(whatsappWebUrl);
       }
     } catch (error) {
@@ -136,14 +134,13 @@ const ProfileScreen = ({ navigation }) => {
 
   const handleViber = async () => {
     const viberUrl = `viber://chat?number=${SUPPORT_PHONE_CLEAN}`;
-    const viberPublicUrl = `viber://public?number=${SUPPORT_PHONE_CLEAN}`;
+    const viberPublicUrl = `viber://public?id=${SUPPORT_PHONE_CLEAN}`;
     
     try {
       const canOpen = await Linking.canOpenURL(viberUrl);
       if (canOpen) {
         await Linking.openURL(viberUrl);
       } else {
-        // Try public chat
         const canOpenPublic = await Linking.canOpenURL(viberPublicUrl);
         if (canOpenPublic) {
           await Linking.openURL(viberPublicUrl);
@@ -164,16 +161,14 @@ const ProfileScreen = ({ navigation }) => {
   };
 
   const handleTelegram = async () => {
-    // Telegram uses phone number in format: tg://resolve?phone=37441051020
-    const telegramUrl = `tg://resolve?phone=${SUPPORT_PHONE_CLEAN}`;
-    const telegramWebUrl = `https://t.me/${SUPPORT_PHONE_CLEAN}`;
+    const telegramUrl = `tg://resolve?domain=support`;
+    const telegramWebUrl = `https://t.me/support`;
     
     try {
       const canOpen = await Linking.canOpenURL(telegramUrl);
       if (canOpen) {
         await Linking.openURL(telegramUrl);
       } else {
-        // Fallback to web version
         await Linking.openURL(telegramWebUrl);
       }
     } catch (error) {
@@ -215,7 +210,6 @@ const ProfileScreen = ({ navigation }) => {
   };
 
   const renderProfileHeader = () => {
-    // Use user data from auth state (most up-to-date), fallback to userProfile
     const firstName = user?.firstName || userProfile?.firstName || '';
     const lastName = user?.lastName || userProfile?.lastName || '';
     const profileImage = user?.profileImage || userProfile?.profileImage;
