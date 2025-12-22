@@ -1,0 +1,49 @@
+image: node:18
+
+stages:
+  - install
+  - build
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - node_modules/
+
+install_dependencies:
+  stage: install
+  script:
+    - npm ci
+    - npm install -g eas-cli@latest
+  artifacts:
+    paths:
+      - node_modules/
+    expire_in: 1 hour
+
+build_android:
+  stage: build
+  script:
+    - npm ci
+    - npm install -g eas-cli@latest
+    - eas build --platform android --profile preview --non-interactive
+  artifacts:
+    paths:
+      - .eas-build/
+    expire_in: 1 week
+  only:
+    - main
+  when: manual
+
+build_ios:
+  stage: build
+  script:
+    - npm ci
+    - npm install -g eas-cli@latest
+    - eas build --platform ios --profile preview --non-interactive
+  artifacts:
+    paths:
+      - .eas-build/
+    expire_in: 1 week
+  only:
+    - main
+  when: manual
+

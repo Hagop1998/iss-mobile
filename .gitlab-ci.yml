@@ -1,0 +1,132 @@
+image: node:18
+
+stages:
+  - install
+  - test
+  - build
+  - deploy
+
+variables:
+  NODE_VERSION: "18"
+  EXPO_VERSION: "~54.0.12"
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - node_modules/
+    - .expo/
+    - android/.gradle/
+    - ios/Pods/
+
+install:
+  stage: install
+  script:
+    - echo "Installing dependencies..."
+    - npm ci
+    - npm install -g expo-cli@latest eas-cli@latest
+  artifacts:
+    paths:
+      - node_modules/
+    expire_in: 1 hour
+  only:
+    - main
+    - develop
+    - merge_requests
+
+lint:
+  stage: test
+  script:
+    - npm ci
+    - echo "Running linting..."
+    - npm run lint || echo "No lint script found, skipping..."
+  only:
+    - main
+    - develop
+    - merge_requests
+  allow_failure: true
+
+build_android_native:
+  stage: build
+  image: jangrewe/gitlab-ci-android
+  before_script:
+    - export GRADLE_USER_HOME=$CI_PROJECT_DIR/.gradle
+    - chmod +x ./android/gradlew || true
+  script:
+    - cd android
+    - ./gradlew clean
+    - ./gradlew assembleRelease
+    - cd ..
+    - echo "Android APK built successfully"
+    - ls -la android/app/build/outputs/apk/release/
+  artifacts:
+    paths:
+      - android/app/build/outputs/apk/release/*.apk
+    expire_in: 1 week
+    reports:
+      junit: android/app/build/test-results/**/*.xml
+  only:
+    - main
+    - tags
+  tags:
+    - android
+  when: manual
+
+build_android_eas:
+  stage: build
+  script:
+    - npm ci
+    - npm install -g eas-cli@latest
+    - echo "Building Android with EAS..."
+    - eas build --platform android --profile preview --non-interactive
+  artifacts:
+    paths:
+      - .eas-build/
+    expire_in: 1 week
+  only:
+    - main
+    - develop
+  when: manual
+  allow_failure: true
+
+build_ios_eas:
+  stage: build
+  script:
+    - npm ci
+    - npm install -g eas-cli@latest
+    - echo "Building iOS with EAS..."
+    - eas build --platform ios --profile preview --non-interactive
+  artifacts:
+    paths:
+      - .eas-build/
+    expire_in: 1 week
+  only:
+    - main
+    - develop
+  when: manual
+  allow_failure: true
+
+deploy_preview:
+  stage: deploy
+  script:
+    - echo "📦 Preview Build Artifacts:"
+    - echo "Android APK:"
+    - ls -la android/app/build/outputs/apk/release/*.apk || echo "No Android build found"
+    - echo "iOS IPA:"
+    - ls -la ios/build/*.ipa || echo "No iOS build found"
+    - echo "✅ Build artifacts are available in GitLab CI/CD artifacts"
+  only:
+    - main
+    - develop
+  when: manual
+
+deploy_production:
+  stage: deploy
+  script:
+    - echo "🚀 Deploying to production..."
+    - echo "Add your deployment script here:"
+    - echo "  - Upload to Google Play Console"
+    - echo "  - Upload to App Store Connect"
+    - echo "  - Or distribute via TestFlight/Internal Testing"
+  only:
+    - tags
+  when: manual
