@@ -12,7 +12,7 @@ cache:
 install_dependencies:
   stage: install
   script:
-    - npm ci
+    - npm ci --legacy-peer-deps
     - npm install -g eas-cli@latest
   artifacts:
     paths:
@@ -22,7 +22,7 @@ install_dependencies:
 build_android:
   stage: build
   script:
-    - npm ci
+    - npm ci --legacy-peer-deps
     - npm install -g eas-cli@latest
     - eas build --platform android --profile preview --non-interactive
   artifacts:
@@ -36,7 +36,7 @@ build_android:
 build_ios:
   stage: build
   script:
-    - npm ci
+    - npm ci --legacy-peer-deps
     - npm install -g eas-cli@latest
     - eas build --platform ios --profile preview --non-interactive
   artifacts:

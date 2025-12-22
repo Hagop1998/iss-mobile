@@ -22,7 +22,7 @@ install:
   stage: install
   script:
     - echo "Installing dependencies..."
-    - npm ci
+    - npm ci --legacy-peer-deps
     - npm install -g expo-cli@latest eas-cli@latest
   artifacts:
     paths:
@@ -36,7 +36,7 @@ install:
 lint:
   stage: test
   script:
-    - npm ci
+    - npm ci --legacy-peer-deps
     - echo "Running linting..."
     - npm run lint || echo "No lint script found, skipping..."
   only:
@@ -74,7 +74,7 @@ build_android_native:
 build_android_eas:
   stage: build
   script:
-    - npm ci
+    - npm ci --legacy-peer-deps
     - npm install -g eas-cli@latest
     - echo "Building Android with EAS..."
     - eas build --platform android --profile preview --non-interactive
@@ -91,7 +91,7 @@ build_android_eas:
 build_ios_eas:
   stage: build
   script:
-    - npm ci
+    - npm ci --legacy-peer-deps
     - npm install -g eas-cli@latest
     - echo "Building iOS with EAS..."
     - eas build --platform ios --profile preview --non-interactive
