@@ -89,6 +89,7 @@ const HomeScreen = ({ navigation, route }) => {
         verified: isVerified,
       });
       
+      
       if (!isVerified) {
         console.log('❌ User is not verified, redirecting to PendingVerification');
         // Immediately redirect if not verified
