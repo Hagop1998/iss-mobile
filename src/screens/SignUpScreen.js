@@ -122,11 +122,8 @@ const SignUpScreen = ({ navigation }) => {
         bio: '',
       })).unwrap();
       
-      await dispatch(signInUser({
-        email: formData.email,
-        password: formData.password,
-      })).unwrap();
-      
+      // Don't auto-login after signup - user needs admin approval first
+      // Navigate directly to PendingVerification screen
       navigation.reset({
         index: 0,
         routes: [{ name: 'PendingVerification' }],

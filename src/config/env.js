@@ -1,7 +1,7 @@
 
 export const API_CONFIG = {
-  // BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'http://138.68.88.206:9001',
-  BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'https://8dtpg9w0-9001.euw.devtunnels.ms',
+  BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'http://138.68.88.206:9001',
+  // BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'https://8dtpg9w0-9001.euw.devtunnels.ms',
 
   TIMEOUT: parseInt(process.env.EXPO_PUBLIC_API_TIMEOUT) || 10000,
   HEADERS: {

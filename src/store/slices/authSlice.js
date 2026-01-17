@@ -34,22 +34,17 @@ export const signUpUser = createAsyncThunk(
       console.log('Extracted token:', token ? 'Token received (length: ' + token.length + ')' : 'No token');
       console.log('Extracted user data:', JSON.stringify(user, null, 2));
       
+      // Set token temporarily to check verification status in PendingVerificationScreen
+      // This token will be used only to poll /auth/status until admin approves
       if (token) {
         apiClient.setAuthToken(token);
-        console.log('✅ Token set globally in API client after signup');
-        
-        try {
-          console.log('Calling /auth/status to verify token after signup...');
-          const statusResponse = await apiService.auth.getStatus();
-          console.log('✅ Auth status verified after signup:', JSON.stringify(statusResponse, null, 2));
-        } catch (statusError) {
-          console.warn('⚠️ Failed to verify auth status after signup:', statusError);
-        }
+        console.log('✅ Token set temporarily for verification status checking');
       } else {
         console.warn('⚠️ No token received from registration API');
       }
       
-      const finalData = response?.data || response;
+      // Store user data with token for verification polling
+      const finalData = { ...(response?.data || response), token, user };
       console.log('Final signup data to store in Redux:', JSON.stringify(finalData, null, 2));
       console.log('=== SIGN UP END ===');
       
@@ -68,6 +63,10 @@ export const signInUser = createAsyncThunk(
     try {
       console.log('=== SIGN IN START ===');
       console.log('Login credentials:', { email: credentials.email, password: '***' });
+      
+      // CRITICAL: Clear any existing token before login - login should NOT have Authorization header
+      apiClient.removeAuthToken();
+      console.log('🔑 Cleared any existing auth token before login');
       
       const response = await apiService.auth.signIn({
         email: credentials.email,
@@ -140,10 +139,7 @@ export const checkAuthStatus = createAsyncThunk(
       const errorMessage = error?.data?.message || error?.message || String(error);
       const isServerError = error?.status >= 500 || errorMessage.includes('Internal server error') || errorMessage.includes('500');
       
-      if (!isServerError) {
-        console.error('❌ AUTH STATUS CHECK ERROR:', error);
-        console.error('Error details:', JSON.stringify(error, null, 2));
-      }
+
       
       return rejectWithValue(errorMessage || 'Auth status check failed');
     }
@@ -229,6 +225,11 @@ const authSlice = createSlice({
       .addCase(signUpUser.fulfilled, (state, action) => {
         state.isLoading = false;
         state.signUpData = action.payload;
+        // Store user temporarily for verification polling (not authenticated yet)
+        if (action.payload?.user || action.payload) {
+          state.user = action.payload?.user || action.payload;
+          // Don't set isAuthenticated = true yet - user needs admin approval first
+        }
         state.error = null;
       })
       .addCase(signUpUser.rejected, (state, action) => {
@@ -306,15 +307,45 @@ const authSlice = createSlice({
         console.log('✅ Check Auth Status - Fulfilled');
         console.log('Status response:', JSON.stringify(action.payload, null, 2));
         state.isLoading = false;
+        
+        const currentToken = state.user?.token || action.payload?.token;
+        let updatedUser;
+        
         if (action.payload?.user) {
-          console.log('Updating user data from status response');
-          const currentToken = state.user?.token;
-          state.user = { ...state.user, ...action.payload.user, token: currentToken };
-          console.log('Token preserved:', currentToken ? 'Yes (length: ' + currentToken.length + ')' : 'No token found');
-        } else if (action.payload && !action.payload.user) {
-          const currentToken = state.user?.token;
-          state.user = { ...state.user, ...action.payload, token: currentToken };
+          console.log('Updating user data from status response (with user object)');
+          updatedUser = { ...state.user, ...action.payload.user, token: currentToken };
+        } else if (action.payload) {
+          console.log('Updating user data from status response (flat structure)');
+          updatedUser = { ...state.user, ...action.payload, token: currentToken };
+        } else {
+          console.warn('⚠️ No payload received from checkAuthStatus');
+          state.error = null;
+          return;
         }
+        
+        state.user = updatedUser;
+        
+        // Check if user is verified (isVerified === true AND status === 1)
+        const isVerified = (updatedUser.isVerified === true || updatedUser.isVerified === 'true') && (updatedUser.status === 1 || updatedUser.status === '1');
+        console.log('🔍 Verification Check:', {
+          isVerified: updatedUser.isVerified,
+          status: updatedUser.status,
+          hasToken: !!currentToken,
+          isVerifiedCheck: isVerified,
+        });
+        
+        if (isVerified && currentToken) {
+          state.isAuthenticated = true;
+          console.log('✅ User is verified (isVerified=true, status=1) and has token - setting as authenticated');
+        } else {
+          console.log('⚠️ User not verified or missing token:', {
+            isVerified: isVerified,
+            hasToken: !!currentToken,
+            reason: !isVerified ? 'Not verified or status !== 1' : 'Missing token',
+          });
+        }
+        
+        console.log('Token preserved:', currentToken ? 'Yes (length: ' + currentToken.length + ')' : 'No token found');
         state.error = null;
       })
       .addCase(checkAuthStatus.rejected, (state, action) => {

@@ -35,12 +35,13 @@ const SignInScreen = ({ navigation }) => {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      const isVerified = user.isVerified === true || user.isVerified === 'true';
+      const isVerified = (user.isVerified === true || user.isVerified === 'true') && (user.status === 1 || user.status === '1');
       
       console.log('🔍 SignInScreen - Verification Check:', {
         userId: user.id,
         email: user.email,
         isVerified: user.isVerified,
+        status: user.status,
         isVerifiedType: typeof user.isVerified,
         verified: isVerified,
       });
@@ -135,6 +136,19 @@ const SignInScreen = ({ navigation }) => {
       console.log('✅ Sign in successful! Result:', result);
     } catch (e) {
       console.error('❌ Sign in failed:', e);
+      const errorMessage = String(e).toLowerCase();
+      
+      // If user needs admin approval, navigate to verification screen instead of showing error
+      if (errorMessage.includes('admin') || errorMessage.includes('verficication') || errorMessage.includes('verification')) {
+        console.log('ℹ️ User needs admin approval, navigating to PendingVerification screen');
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'PendingVerification' }],
+        });
+      } else {
+        // For other errors, show the alert (handled by useEffect below)
+        setErrors({ general: String(e) });
+      }
     } finally {
       setLoading(false);
     }

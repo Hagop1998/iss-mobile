@@ -77,12 +77,14 @@ const HomeScreen = ({ navigation, route }) => {
   useEffect(() => {
     if (isAuthenticated && user) {
       // Check isVerified explicitly - handle both boolean false and string "false"
-      const isVerified = user.isVerified === true || user.isVerified === 'true';
+      // User is verified only if isVerified === true AND status === 1
+      const isVerified = (user.isVerified === true || user.isVerified === 'true') && (user.status === 1 || user.status === '1');
       
       console.log('🔍 HomeScreen - Verification Check:', {
         userId: user.id,
         email: user.email,
         isVerified: user.isVerified,
+        status: user.status,
         isVerifiedType: typeof user.isVerified,
         verified: isVerified,
       });
@@ -98,11 +100,11 @@ const HomeScreen = ({ navigation, route }) => {
         console.log('✅ User is verified, allowing access to Home');
       }
     }
-  }, [isAuthenticated, user, user?.isVerified, navigation]);
+  }, [isAuthenticated, user, user?.isVerified, user?.status, navigation]);
 
   // Don't render content if user is not verified
   if (isAuthenticated && user) {
-    const isVerified = user.isVerified === true || user.isVerified === 'true';
+    const isVerified = (user.isVerified === true || user.isVerified === 'true') && user.status === 1;
     if (!isVerified) {
       console.log('⏳ Blocking HomeScreen render - user not verified');
       return null; // Return null while redirecting

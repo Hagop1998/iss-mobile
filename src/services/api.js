@@ -120,6 +120,12 @@ class ApiClient {
     try {
       const requestHeaders = { ...this.headers, ...headers };
       const isLoginApi = url.includes('/auth/login');
+      const isSignUpApi = url.includes('/auth/register');
+      
+      // CRITICAL: Remove Authorization header for login/signup - these endpoints should NOT have tokens
+      if (isLoginApi || isSignUpApi) {
+        delete requestHeaders.Authorization;
+      }
       
       if (isLoginApi) {
         console.log('═══════════════════════════════════════════════════════════');
