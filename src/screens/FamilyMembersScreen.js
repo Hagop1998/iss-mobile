@@ -30,7 +30,9 @@ const FamilyMembersScreen = ({ navigation }) => {
   const { user } = useAuth();
 
   const [familyMembers, setFamilyMembers] = useState([]);
+  const [pendingInvitations, setPendingInvitations] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingInvitations, setIsLoadingInvitations] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [invitePhone, setInvitePhone] = useState('');
@@ -45,6 +47,7 @@ const FamilyMembersScreen = ({ navigation }) => {
 
   useEffect(() => {
     fetchFamilyMembers();
+    fetchPendingInvitations();
   }, []);
 
 
@@ -97,6 +100,94 @@ const FamilyMembersScreen = ({ navigation }) => {
       setFamilyMembers([]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchPendingInvitations = async () => {
+    try {
+      setIsLoadingInvitations(true);
+      // Get pending invitations from user profile/subscription
+      // They might be in familyMembers with status 'pending' or in a separate invitations array
+      const response = await dispatch(checkAuthStatus()).unwrap();
+      
+      // Check if invitations are in familyMembers with pending status
+      const allFamilyData = response?.member.userSubscription?.familyMembers || [];
+      const pending = allFamilyData.filter(member => 
+        member.status === 'pending' || 
+        member.role === 'pending' ||
+        !member.user // If user is null, it might be a pending invitation
+      );
+      
+      // Transform pending invitations
+      const transformedInvitations = pending.map(invitation => {
+        // If this is an invitation where the current user is the invitee,
+        // the owner info might be in the subscription owner
+        const owner = response?.userSubscription?.user || response?.user;
+        
+        return {
+          id: invitation.id,
+          invitationId: invitation.id,
+          ownerId: owner?.id,
+          owner: owner,
+          firstName: owner?.firstName || '',
+          lastName: owner?.lastName || '',
+          email: owner?.email || '',
+          phone: owner?.phone || '',
+          invitedAt: invitation.invitedAt || invitation.createdAt,
+        };
+      });
+
+      setPendingInvitations(transformedInvitations);
+    } catch (error) {
+      console.error('Error fetching pending invitations:', error);
+      setPendingInvitations([]);
+    } finally {
+      setIsLoadingInvitations(false);
+    }
+  };
+
+  const handleAcceptInvitation = async (invitationId) => {
+    try {
+      await apiService.family.acceptInvitation(invitationId);
+      Alert.alert(
+        t('family.success'),
+        t('family.acceptSuccess'),
+        [
+          {
+            text: t('common.ok'),
+            onPress: () => {
+              fetchPendingInvitations();
+              fetchFamilyMembers();
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Error accepting invitation:', error);
+      const errorMessage = error?.data?.message || error?.message || t('family.acceptError');
+      Alert.alert(t('family.error'), errorMessage);
+    }
+  };
+
+  const handleIgnoreInvitation = async (invitationId) => {
+    try {
+      await apiService.family.rejectInvitation(invitationId);
+      Alert.alert(
+        t('family.success'),
+        t('family.ignoreSuccess'),
+        [
+          {
+            text: t('common.ok'),
+            onPress: () => {
+              fetchPendingInvitations();
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Error ignoring invitation:', error);
+      const errorMessage = error?.data?.message || error?.message || t('family.ignoreError');
+      Alert.alert(t('family.error'), errorMessage);
     }
   };
 
@@ -259,6 +350,46 @@ const FamilyMembersScreen = ({ navigation }) => {
     );
   };
 
+  const renderInvitationCard = (invitation) => {
+    const displayName = getUserDisplayName({
+      firstName: invitation.firstName,
+      lastName: invitation.lastName,
+      email: invitation.email,
+      phone: invitation.phone,
+    });
+
+    return (
+      <View key={invitation.id} style={styles.invitationCard}>
+        <View style={styles.invitationInfo}>
+          <View style={styles.invitationAvatar}>
+            <Ionicons name="person" size={28} color={colors.primary} />
+          </View>
+          <View style={styles.invitationDetails}>
+            <Text style={styles.invitationTitle}>{t('family.invitationFrom')}</Text>
+            <Text style={styles.invitationName}>{displayName}</Text>
+            <Text style={styles.invitationMessage}>{t('family.wantsToShare')}</Text>
+          </View>
+        </View>
+        <View style={styles.invitationActions}>
+          <TouchableOpacity
+            style={[styles.invitationActionButton, styles.acceptButton]}
+            onPress={() => handleAcceptInvitation(invitation.invitationId || invitation.id)}
+          >
+            <Ionicons name="checkmark" size={18} color={colors.white} />
+            <Text style={styles.acceptButtonText}>{t('family.acceptInvitation')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.invitationActionButton, styles.ignoreButton]}
+            onPress={() => handleIgnoreInvitation(invitation.invitationId || invitation.id)}
+          >
+            <Ionicons name="close" size={18} color={colors.text.primary} />
+            <Text style={styles.ignoreButtonText}>{t('family.ignoreInvitation')}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   const renderMemberCard = (member) => {
     const isOwner = member.role === 'owner';
     const displayName = getUserDisplayName(member);
@@ -411,6 +542,24 @@ const FamilyMembersScreen = ({ navigation }) => {
           <Text style={styles.infoTitle}>{t('family.subtitle')}</Text>
           <Text style={styles.infoText}>{t('family.description')}</Text>
         </View>
+
+        {/* Pending Invitations Section */}
+        {pendingInvitations.length > 0 && (
+          <View style={styles.invitationsSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>{t('family.pendingInvitations')}</Text>
+            </View>
+            {isLoadingInvitations ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={colors.primary} />
+              </View>
+            ) : (
+              <View style={styles.invitationsList}>
+                {pendingInvitations.map(renderInvitationCard)}
+              </View>
+            )}
+          </View>
+        )}
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{t('family.members')}</Text>
@@ -689,6 +838,92 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     borderRadius: 8,
     backgroundColor: colors.red[500] + '10',
+  },
+  invitationsSection: {
+    marginBottom: 24,
+  },
+  invitationsList: {
+    marginBottom: 8,
+  },
+  invitationCard: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: colors.primary + '30',
+  },
+  invitationInfo: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  invitationAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+    borderWidth: 2,
+    borderColor: colors.primary + '30',
+  },
+  invitationDetails: {
+    flex: 1,
+  },
+  invitationTitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.text.secondary,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  invitationName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text.primary,
+    marginBottom: 4,
+  },
+  invitationMessage: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    lineHeight: 20,
+  },
+  invitationActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  invitationActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    gap: 8,
+  },
+  acceptButton: {
+    backgroundColor: colors.primary,
+  },
+  acceptButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.white,
+  },
+  ignoreButton: {
+    backgroundColor: colors.gray[200],
+  },
+  ignoreButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text.primary,
   },
   modalOverlay: {
     flex: 1,

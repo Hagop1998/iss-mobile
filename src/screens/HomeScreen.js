@@ -152,8 +152,8 @@ const HomeScreen = ({ navigation, route }) => {
     } else if (feature === 'Elevator') {
       navigation.navigate('Elevator');
     } else if (feature === 'Surveillance Cameras') {
-      // Navigate to camera live view
-      navigation.navigate('Camera');
+      // Navigate to external camera live view
+      navigation.navigate('ExternalCamera', { channel: 0, streamType: 0 });
     } else if (feature === 'Barrier') {
       // Navigate to QR code generation for Barrier (same as Elevator)
       navigation.navigate('AccessByQRCode', { service: 'barrier' });

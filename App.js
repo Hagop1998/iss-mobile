@@ -18,6 +18,7 @@ import AccessByQRCodeScreen from './src/screens/AccessByQRCodeScreen';
 import GenerateQRCodeScreen from './src/screens/GenerateQRCodeScreen';
 import QRCodeResultScreen from './src/screens/QRCodeResultScreen';
 import CameraScreen from './src/screens/CameraScreen';
+import ExternalCameraScreen from './src/screens/ExternalCameraScreen';
 import SmartIntercomScreen from './src/screens/SmartIntercomScreen';
 import ElevatorScreen from './src/screens/ElevatorScreen';
 import PinAccessScreen from './src/screens/PinAccessScreen';
@@ -54,6 +55,7 @@ export default function App() {
           <Stack.Screen name="GenerateQRCode" component={GenerateQRCodeScreen} />
           <Stack.Screen name="QRCodeResult" component={QRCodeResultScreen} />
           <Stack.Screen name="Camera" component={CameraScreen} />
+          <Stack.Screen name="ExternalCamera" component={ExternalCameraScreen} />
           <Stack.Screen name="SmartIntercom" component={SmartIntercomScreen} />
           <Stack.Screen name="Elevator" component={ElevatorScreen} />
           <Stack.Screen name="PinAccess" component={PinAccessScreen} />

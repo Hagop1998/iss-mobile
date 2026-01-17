@@ -1,4 +1,4 @@
-import { API_CONFIG } from '../config/env';
+import { API_CONFIG, EXTERNAL_CAMERA_CONFIG } from '../config/env';
 
 export const apiConfig = {
   baseURL: API_CONFIG.BASE_URL,
@@ -44,6 +44,16 @@ export const endpoints = {
     elevator: '/home/elevator',
     cameras: '/home/cameras',
     barrier: '/home/barrier',
+  },
+  
+  externalCamera: {
+    livePreview: '/frmLivePreview',
+    startPlayback: '/frmStartPlayback',
+    stopPlayback: '/frmStopPlayback',
+    getChannelInfo: '/frmGetChannelInfo',
+    ptzControl: '/frmPTZControl',
+    getCruiseSettings: '/frmGetCruiseSettings',
+    addCruisePreset: '/frmAddCruisePreset',
   },
   
   qr: {
@@ -281,6 +291,19 @@ class ApiClient {
 
 export const apiClient = new ApiClient(apiConfig);
 
+const externalCameraApiConfig = {
+  baseURL: `${EXTERNAL_CAMERA_CONFIG.BASE_URL}:${EXTERNAL_CAMERA_CONFIG.HTTP_PORT}`,
+  timeout: EXTERNAL_CAMERA_CONFIG.TIMEOUT,
+  headers: EXTERNAL_CAMERA_CONFIG.HEADERS,
+};
+
+console.log('📷 External Camera API Config:', {
+  baseURL: externalCameraApiConfig.baseURL,
+  timeout: externalCameraApiConfig.timeout,
+});
+
+const externalCameraClient = new ApiClient(externalCameraApiConfig);
+
 export const apiService = {
   auth: {
     signUp: (userData) => apiClient.post(endpoints.auth.signUp, userData),
@@ -342,6 +365,12 @@ export const apiService = {
     removeFamilyMember: (id) => {
       return apiClient.delete(`${endpoints.user.removeFamilyMember}/${id}`);
     },
+    acceptInvitation: (invitationId, data = { status: 'accepted' }) => {
+      return apiClient.request('PATCH', `${endpoints.user.inviteFamilyMember}/${invitationId}`, { data });
+    },
+    rejectInvitation: (invitationId) => {
+      return apiClient.delete(`${endpoints.user.inviteFamilyMember}/${invitationId}`);
+    },
   },
 
   verification: {
@@ -357,6 +386,16 @@ export const apiService = {
     controlElevator: (data) => apiClient.post(endpoints.home.elevator, data),
     getCameras: () => apiClient.get(endpoints.home.cameras),
     controlBarrier: (data) => apiClient.post(endpoints.home.barrier, data),
+  },
+
+  externalCamera: {
+    startLivePreview: (data) => externalCameraClient.post(endpoints.externalCamera.livePreview, data),
+    startPlayback: (data) => externalCameraClient.post(endpoints.externalCamera.startPlayback, data),
+    stopPlayback: (data) => externalCameraClient.post(endpoints.externalCamera.stopPlayback, data),
+    getChannelInfo: (data) => externalCameraClient.post(endpoints.externalCamera.getChannelInfo, data),
+    ptzControl: (data) => externalCameraClient.post(endpoints.externalCamera.ptzControl, data),
+    getCruiseSettings: (data) => externalCameraClient.post(endpoints.externalCamera.getCruiseSettings, data),
+    addCruisePreset: (data) => externalCameraClient.post(endpoints.externalCamera.addCruisePreset, data),
   },
 
   qr: {
@@ -390,6 +429,8 @@ export const apiService = {
   family: {
     invite: (userId, data) => apiService.user.inviteFamilyMember(userId, data),
     removeMember: (id) => apiService.user.removeFamilyMember(id),
+    acceptInvitation: (invitationId, data) => apiService.user.acceptInvitation(invitationId, data),
+    rejectInvitation: (invitationId) => apiService.user.rejectInvitation(invitationId),
   },
 
   devices: {

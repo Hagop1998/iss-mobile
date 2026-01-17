@@ -1,7 +1,22 @@
 
 export const API_CONFIG = {
-  BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'http://138.68.88.206:9001',
+  // BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'http://138.68.88.206:9001',
+  BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'https://8dtpg9w0-9001.euw.devtunnels.ms',
+
   TIMEOUT: parseInt(process.env.EXPO_PUBLIC_API_TIMEOUT) || 10000,
+  HEADERS: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  },
+};
+
+export const EXTERNAL_CAMERA_CONFIG = {
+  BASE_URL: process.env.EXPO_PUBLIC_CAMERA_API_URL || 'https://result.eolink.com',
+  HTTP_PORT: parseInt(process.env.EXPO_PUBLIC_CAMERA_HTTP_PORT) || 80,
+  HTTPS_PORT: parseInt(process.env.EXPO_PUBLIC_CAMERA_HTTPS_PORT) || 4433,
+  H5_PORT: parseInt(process.env.EXPO_PUBLIC_CAMERA_H5_PORT) || 7681,
+  RTSP_PORT: parseInt(process.env.EXPO_PUBLIC_CAMERA_RTSP_PORT) || 554,
+  TIMEOUT: parseInt(process.env.EXPO_PUBLIC_CAMERA_API_TIMEOUT) || 15000,
   HEADERS: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
