@@ -29,13 +29,6 @@ const elevatorIcon = require('../../assets/elavator.png');
 const cameraIcon = require('../../assets/camera.png');
 const barrierIcon = require('../../assets/barrier.png');
 
-// Mock addresses data
-const MOCK_ADDRESSES = [
-  { id: 1, address: 'Vratsakan 6', city: 'Yerevan', apartmentId: '123456' },
-  { id: 2, address: 'Kanaker Zeytun 1', city: 'Yerevan', apartmentId: '234567' },
-  { id: 3, address: 'Komitas 30', city: 'Yerevan', apartmentId: '345678' },
-  { id: 4, address: 'Artsakh 16', city: 'Yerevan', apartmentId: '456789' },
-];
 
 const HomeScreen = ({ navigation, route }) => {
   const { t, i18n } = useTranslation();
@@ -47,23 +40,15 @@ const HomeScreen = ({ navigation, route }) => {
   const [selectedTab, setSelectedTab] = useState('Home');
   const [showBenefitsModal, setShowBenefitsModal] = useState(false);
   const [selectedService, setSelectedService] = useState(null);
-  const [showAddressModal, setShowAddressModal] = useState(false);
-  const [addressSearchQuery, setAddressSearchQuery] = useState('');
-  const [filteredAddresses, setFilteredAddresses] = useState(MOCK_ADDRESSES);
-  const [selectedAddress, setSelectedAddress] = useState(MOCK_ADDRESSES[0]); // Default to first address
-  const [allSubscriptions, setAllSubscriptions] = useState([]); // Owner's subscriptions
+  const [allSubscriptions, setAllSubscriptions] = useState([]); 
 
-  // Check verification status whenever screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
       const checkVerification = async () => {
         if (isAuthenticated && user?.token) {
-          // Refresh auth status to get latest isVerified value
           try {
             await dispatch(checkAuthStatus()).unwrap();
           } catch (error) {
-            // Silently handle errors - don't spam console
-            // The verification check will use the current user state anyway
             const errorMessage = error?.message || String(error);
             if (!errorMessage.includes('Internal server error')) {
               console.warn('⚠️ Could not refresh auth status:', errorMessage);
@@ -222,54 +207,27 @@ const HomeScreen = ({ navigation, route }) => {
     setSelectedService(null);
   };
 
-  // Address search and filter
-  useEffect(() => {
-    if (addressSearchQuery === '') {
-      setFilteredAddresses(MOCK_ADDRESSES);
-    } else {
-      const filtered = MOCK_ADDRESSES.filter(item =>
-        item.address.toLowerCase().includes(addressSearchQuery.toLowerCase()) ||
-        item.city.toLowerCase().includes(addressSearchQuery.toLowerCase()) ||
-        item.apartmentId.includes(addressSearchQuery)
-      );
-      setFilteredAddresses(filtered);
-    }
-  }, [addressSearchQuery]);
-
-  const handleAddressSelect = (address) => {
-    console.log('📍 Address selected:', address.address);
-    setSelectedAddress(address);
-    setShowAddressModal(false);
-    setAddressSearchQuery('');
-  };
-
-  const handleOpenAddressModal = () => {
-    console.log('📍 Opening address selector modal');
-    setShowAddressModal(true);
-  };
-
-  const handleCloseAddressModal = () => {
-    setShowAddressModal(false);
-    setAddressSearchQuery('');
-  };
-
   const renderLocationCard = () => {
-    // Use user's actual address from profile, fallback to selected address
-    const userAddress = user?.bio || user?.address;
-    const displayAddress = userAddress || selectedAddress.address || 'No address';
-    const apartmentId = user?.id || selectedAddress.apartmentId || '000000';
+    // Get address from userSubscription.device.address
+    // Only show if user has subscription
+    if (!user?.userSubscription?.device?.address) {
+      return null; // Don't render address card if no subscription
+    }
+    
+    const deviceAddress = user.userSubscription.device.address;
+    const addressText = deviceAddress.address || '';
+    const cityText = deviceAddress.city || '';
+    const displayAddress = cityText ? `${addressText}, ${cityText}` : addressText;
     
     return (
-      <TouchableOpacity style={styles.locationCard} onPress={handleOpenAddressModal}>
+      <View style={[styles.locationCard, styles.locationCardDisabled]}>
         <View style={styles.locationHeader}>
           <Ionicons name="location" size={24} color={colors.black} />
           <View style={styles.locationInfo}>
-            <Text style={styles.locationAddress}>{displayAddress}</Text>
-            <Text style={styles.locationId}>ID: {apartmentId}</Text>
+            <Text style={styles.locationAddress}>{displayAddress || 'No address'}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.gray[400]} />
         </View>
-      </TouchableOpacity>
+      </View>
     );
   };
 
@@ -430,84 +388,6 @@ const HomeScreen = ({ navigation, route }) => {
         onContinue={handleContinueToService}
         service={selectedService}
       />
-
-      {/* Address Selection Modal */}
-      <Modal
-        visible={showAddressModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={handleCloseAddressModal}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Address</Text>
-              <TouchableOpacity onPress={handleCloseAddressModal}>
-                <Ionicons name="close" size={24} color={colors.text.primary} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Search Input */}
-            <View style={styles.searchContainer}>
-              <Ionicons name="search" size={20} color={colors.gray[400]} style={styles.searchIcon} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search address or ID..."
-                value={addressSearchQuery}
-                onChangeText={setAddressSearchQuery}
-                autoFocus={true}
-              />
-              {addressSearchQuery !== '' && (
-                <TouchableOpacity onPress={() => setAddressSearchQuery('')}>
-                  <Ionicons name="close-circle" size={20} color={colors.gray[400]} />
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* Address List */}
-            <FlatList
-              data={filteredAddresses}
-              keyExtractor={(item) => item.id.toString()}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.addressItem,
-                    selectedAddress.id === item.id && styles.addressItemSelected
-                  ]}
-                  onPress={() => handleAddressSelect(item)}
-                >
-                  <Ionicons 
-                    name="location" 
-                    size={20} 
-                    color={selectedAddress.id === item.id ? colors.primary : colors.text.primary} 
-                  />
-                  <View style={styles.addressItemText}>
-                    <Text style={[
-                      styles.addressItemTitle,
-                      selectedAddress.id === item.id && styles.addressItemTitleSelected
-                    ]}>
-                      {item.address}
-                    </Text>
-                    <Text style={styles.addressItemSubtitle}>
-                      {item.city} • ID: {item.apartmentId}
-                    </Text>
-                  </View>
-                  {selectedAddress.id === item.id && (
-                    <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
-                  )}
-                </TouchableOpacity>
-              )}
-              ListEmptyComponent={() => (
-                <View style={styles.emptyListContainer}>
-                  <Ionicons name="location-outline" size={48} color={colors.gray[300]} />
-                  <Text style={styles.emptyListText}>No addresses found</Text>
-                  <Text style={styles.emptyListSubtext}>Try a different search term</Text>
-                </View>
-              )}
-            />
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 };
