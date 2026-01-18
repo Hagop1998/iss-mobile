@@ -87,11 +87,13 @@ const FamilyMembersScreen = ({ navigation }) => {
         userId: member.userId,
         role: member.role,
         invitedAt: member.invitedAt,
+        acceptedAt: member.acceptedAt,
         firstName: member.user?.firstName || '',
         lastName: member.user?.lastName || '',
         email: member.user?.email || '',
         phone: member.user?.phone || '',
-        status: 'active',
+        // Status based on acceptedAt: null = pending, has value = active
+        status: member.acceptedAt ? 'active' : 'pending',
       }));
 
       setFamilyMembers(transformedMembers);
@@ -105,27 +107,24 @@ const FamilyMembersScreen = ({ navigation }) => {
   const fetchPendingInvitations = async () => {
     try {
       setIsLoadingInvitations(true);
-      // Get pending invitations from user profile/subscription
-      // They might be in familyMembers with status 'pending' or in a separate invitations array
       const response = await dispatch(checkAuthStatus()).unwrap();
       
-      // Check if invitations are in familyMembers with pending status
-      // Response is the user object directly, not nested under 'member'
       const allFamilyData = response?.userSubscription?.familyMembers || [];
+      const currentUserId = response?.id || user?.id;
       const pending = allFamilyData.filter(member => 
-        member.status === 'pending' || 
-        member.role === 'pending' ||
-        !member.user 
+        !member.acceptedAt && 
+        member.userId === currentUserId 
       );
       
       const transformedInvitations = pending.map(invitation => {
-     
-        const owner = response?.userSubscription?.user || response?.user;
+        const subscriptionOwnerId = response?.userSubscription?.userId;
+        const ownerMember = allFamilyData.find(member => member.role === 'owner');
+        const owner = ownerMember?.user || response?.userSubscription?.user || response?.user;
         
         return {
           id: invitation.id,
           invitationId: invitation.id,
-          ownerId: owner?.id,
+          ownerId: owner?.id || subscriptionOwnerId,
           owner: owner,
           firstName: owner?.firstName || '',
           lastName: owner?.lastName || '',
@@ -178,6 +177,7 @@ const FamilyMembersScreen = ({ navigation }) => {
             text: t('common.ok'),
             onPress: () => {
               fetchPendingInvitations();
+              fetchFamilyMembers(); 
             },
           },
         ]
@@ -420,10 +420,17 @@ const FamilyMembersScreen = ({ navigation }) => {
               )}
             </View>
             <View style={styles.memberStatus}>
-              <View style={[styles.statusBadge, styles.statusActive]}>
-                <View style={styles.statusDot} />
-                <Text style={styles.statusText}>{t('family.active')}</Text>
-              </View>
+              {member.status === 'active' ? (
+                <View style={[styles.statusBadge, styles.statusActive]}>
+                  <View style={styles.statusDot} />
+                  <Text style={styles.statusText}>{t('family.active')}</Text>
+                </View>
+              ) : (
+                <View style={[styles.statusBadge, styles.statusPending]}>
+                  <View style={[styles.statusDot, styles.statusDotPending]} />
+                  <Text style={styles.statusTextPending}>{t('family.pending')}</Text>
+                </View>
+              )}
             </View>
           </View>
         </View>
@@ -823,10 +830,18 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: colors.green[500],
   },
+  statusDotPending: {
+    backgroundColor: colors.orange[500],
+  },
   statusText: {
     fontSize: 12,
     fontWeight: '600',
     color: colors.green[700],
+  },
+  statusTextPending: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.orange[700],
   },
   removeButton: {
     padding: 8,
