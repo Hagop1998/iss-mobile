@@ -322,7 +322,7 @@ const HomeScreen = ({ navigation, route }) => {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{t('home.title')}</Text>
         <TouchableOpacity onPress={handleLogout}>
-          <Ionicons name="notifications" size={24} color={colors.text.primary} />
+          <Ionicons name="log-out-outline" size={24} color={colors.text.primary} />
         </TouchableOpacity>
       </View>
 
