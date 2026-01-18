@@ -65,7 +65,12 @@ const TabBar = ({ activeTab, onTabPress, navigation }) => {
                 color={isActive ? colors.white : colors.gray[400]}
               />
             )}
-            <Text style={[styles.tabText, isActive && styles.activeTabText]}>
+            <Text 
+              style={[styles.tabText, isActive && styles.activeTabText]}
+              numberOfLines={1}
+              adjustsFontSizeToFit={true}
+              minimumFontScale={0.8}
+            >
               {tab.label}
             </Text>
           </TouchableOpacity>
@@ -93,21 +98,22 @@ const styles = StyleSheet.create({
   tab: {
     flex: 1,
     alignItems: 'center',
-    whiteSpace: 'nowrap',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
     borderRadius: 12,
+    minWidth: 0,
   },
   activeTab: {
     backgroundColor: colors.primary,
   },
   tabText: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.gray[400],
     marginTop: 4,
     fontWeight: '500',
-    whiteSpace: 'nowrap',
     textAlign: 'center',
+    maxWidth: '100%',
   },
   activeTabText: {
     color: colors.white,

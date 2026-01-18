@@ -34,7 +34,6 @@ const HomeScreen = ({ navigation, route }) => {
   const { t, i18n } = useTranslation();
   const dispatch = useAppDispatch();
   
-  // Get user from Redux state
   const { user, isAuthenticated, isLoading } = useAppSelector(state => state.auth);
   
   const [selectedTab, setSelectedTab] = useState('Home');

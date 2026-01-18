@@ -16,6 +16,7 @@ import { fetchUserProfile, fetchActiveServices, fetchPaymentMethods } from '../s
 import { logoutUser } from '../store/slices/authSlice';
 import { setLanguage, showModal, hideModal } from '../store/slices/appSlice';
 import { useAuth } from '../hooks/useAuth';
+import { apiService } from '../services/api';
 import LanguageSelectorModal from '../components/LanguageSelectorModal';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
@@ -26,16 +27,7 @@ const ProfileScreen = ({ navigation }) => {
   const dispatch = useAppDispatch();
   const { user, isAuthenticated, verifyAuthStatus } = useAuth();
   const { userProfile, activeServices, paymentMethods, isLoading } = useAppSelector(state => state.profile);
-  
-  const activeServicesCount = useMemo(() => {
-    if (user?.member?.userSubscription?.subscription?.id) {
-      return 1; 
-    }
-    if (user?.userSubscription?.subscription?.id) {
-      return 1; 
-    }
-    return activeServices?.length || 0;
-  }, [user, activeServices]);
+  const [activeServicesCount, setActiveServicesCount] = useState(0);
   const { language, modals } = useAppSelector(state => state.app);
   
   const [selectedTab, setSelectedTab] = useState('Profile');
@@ -45,10 +37,46 @@ const ProfileScreen = ({ navigation }) => {
       dispatch(fetchUserProfile(user.id));
       dispatch(fetchActiveServices(user.id));
       dispatch(fetchPaymentMethods(user.id));
+      fetchActiveServicesCount();
     } else {
       console.warn('⚠️ No user ID available, skipping profile fetch');
+      setActiveServicesCount(0);
     }
-  }, [user?.id, dispatch]);
+  }, [user?.id, user?.member?.userSubscription, user?.userSubscription, dispatch]);
+
+  const fetchActiveServicesCount = async () => {
+    try {
+      let count = 0;
+
+      if (user?.member?.userSubscription?.subscription?.id) {
+        count = 1; 
+      } else if (user?.userSubscription?.subscription?.id) {
+        try {
+          const userSubscriptionsResponse = await apiService.subscriptions.getUserSubscriptions(user.id);
+          let userSubs = [];
+          
+          if (Array.isArray(userSubscriptionsResponse)) {
+            userSubs = userSubscriptionsResponse;
+          } else if (Array.isArray(userSubscriptionsResponse?.data)) {
+            userSubs = userSubscriptionsResponse.data;
+          } else if (userSubscriptionsResponse && typeof userSubscriptionsResponse === 'object') {
+            userSubs = [userSubscriptionsResponse];
+          }
+          
+          count = userSubs.filter(sub => sub.status === 'active').length;
+        } catch (error) {
+          if (user?.userSubscription?.subscription?.id) {
+            count = 1;
+          }
+        }
+      }
+
+      setActiveServicesCount(count);
+    } catch (error) {
+      console.error('Error fetching active services count:', error);
+      setActiveServicesCount(0);
+    }
+  };
 
   const handlePersonalInformation = () => {
     navigation.navigate('PersonalInformation');
@@ -250,8 +278,8 @@ const ProfileScreen = ({ navigation }) => {
           <Ionicons name={icon} size={24} color={colors.text.primary} />
         </View>
         <View style={styles.profileOptionText}>
-          <Text style={styles.profileOptionTitle}>{title}</Text>
-          {subtitle && <Text style={styles.profileOptionSubtitle}>{subtitle}</Text>}
+          <Text style={styles.profileOptionTitle} numberOfLines={1}>{title}</Text>
+          {subtitle && <Text style={styles.profileOptionSubtitle} numberOfLines={1}>{subtitle}</Text>}
         </View>
         {badge && (
           <View style={styles.badge}>
@@ -427,6 +455,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
+    flexWrap: 'nowrap',
+    justifyContent: 'space-between',
   },
   profileOptionIcon: {
     width: 40,
@@ -439,12 +469,14 @@ const styles = StyleSheet.create({
   },
   profileOptionText: {
     flex: 1,
+    minWidth: 0,
+    marginRight: 8,
   },
   profileOptionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text.primary,
-    marginBottom: 2,
+    marginBottom: 0,
   },
   profileOptionSubtitle: {
     fontSize: 14,
