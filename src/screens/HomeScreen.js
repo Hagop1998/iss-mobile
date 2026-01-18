@@ -60,11 +60,8 @@ const HomeScreen = ({ navigation, route }) => {
     }, [dispatch, isAuthenticated, user?.token])
   );
 
-  // Check if user is verified, redirect to PendingVerification if not
   useEffect(() => {
     if (isAuthenticated && user) {
-      // Check isVerified explicitly - handle both boolean false and string "false"
-      // User is verified only if isVerified === true AND status === 1
       const isVerified = (user.isVerified === true || user.isVerified === 'true') && (user.status === 1 || user.status === '1');
       
       console.log('🔍 HomeScreen - Verification Check:', {
@@ -332,7 +329,6 @@ const HomeScreen = ({ navigation, route }) => {
       >
         {renderLocationCard()}
         
-        {/* Show message and owner subscriptions if user has no subscription */}
         {!hasSubscription && allSubscriptions.length > 0 && (
           <View style={styles.noSubscriptionContainer}>
             <View style={styles.messageBanner}>

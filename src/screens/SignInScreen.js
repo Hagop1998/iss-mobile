@@ -245,13 +245,13 @@ const SignInScreen = ({ navigation }) => {
           <View style={styles.footer}>
             <Text style={styles.footerText}>
               {t('signUp.footerText')}{' '}
-              <TouchableOpacity onPress={handlePrivacyPolicy}>
-                <Text style={styles.linkText}>{t('signUp.privacyPolicy')}</Text>
-              </TouchableOpacity>
+              <Text style={styles.linkText} onPress={handlePrivacyPolicy}>
+                {t('signUp.privacyPolicy')}
+              </Text>
               {' '}{t('signUp.and')}{' '}
-              <TouchableOpacity onPress={handleTermsConditions}>
-                <Text style={styles.linkText}>{t('signUp.termsConditions')}</Text>
-              </TouchableOpacity>
+              <Text style={styles.linkText} onPress={handleTermsConditions}>
+                {t('signUp.termsConditions')}
+              </Text>
               .
             </Text>
           </View>
@@ -318,16 +318,20 @@ const styles = StyleSheet.create({
   },
   footer: {
     marginTop: 'auto',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
   },
   footerText: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.text.secondary,
     lineHeight: 20,
     textAlign: 'center',
+    letterSpacing: 0.2,
   },
   linkText: {
     color: colors.primary,
-    fontWeight: '500',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
 });
 
