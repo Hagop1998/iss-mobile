@@ -29,6 +29,8 @@ export const endpoints = {
     search: '/search',
     inviteFamilyMember: '/users/invite-family-member',
     removeFamilyMember: '/users/remove-family-member',
+    getMyInvitations: '/users/invitation/me',
+    acceptInvitation: '/users/invitation/accept',
   },
   
   verification: {
@@ -372,10 +374,13 @@ export const apiService = {
       return apiClient.delete(`${endpoints.user.removeFamilyMember}/${id}`);
     },
     acceptInvitation: (invitationId, data = { status: 'accepted' }) => {
-      return apiClient.request('PATCH', `${endpoints.user.inviteFamilyMember}/${invitationId}`, { data });
+      return apiClient.request('PATCH', `${endpoints.user.acceptInvitation}/${invitationId}`, { data });
     },
     rejectInvitation: (invitationId) => {
       return apiClient.delete(`${endpoints.user.inviteFamilyMember}/${invitationId}`);
+    },
+    getMyInvitations: () => {
+      return apiClient.get(endpoints.user.getMyInvitations);
     },
   },
 

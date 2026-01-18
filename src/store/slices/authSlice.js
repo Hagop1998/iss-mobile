@@ -316,7 +316,22 @@ const authSlice = createSlice({
           updatedUser = { ...state.user, ...action.payload.user, token: currentToken };
         } else if (action.payload) {
           console.log('Updating user data from status response (flat structure)');
-          updatedUser = { ...state.user, ...action.payload, token: currentToken };
+          // Handle case where userSubscription is nested in member object (for non-owner members)
+          if (action.payload.member?.userSubscription && !action.payload.userSubscription) {
+            console.log('Found userSubscription in member object, moving to top level');
+            updatedUser = { 
+              ...state.user, 
+              ...action.payload, 
+              userSubscription: action.payload.member.userSubscription,
+              token: currentToken 
+            };
+            // Remove member object if it's not needed elsewhere
+            if (updatedUser.member) {
+              delete updatedUser.member;
+            }
+          } else {
+            updatedUser = { ...state.user, ...action.payload, token: currentToken };
+          }
         } else {
           console.warn('⚠️ No payload received from checkAuthStatus');
           state.error = null;
