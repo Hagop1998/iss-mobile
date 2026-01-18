@@ -212,11 +212,7 @@ const FamilyMembersScreen = ({ navigation }) => {
       const filteredResults = filterUsers(results, user?.id);
       setUsers(filteredResults);
 
-      if (filteredResults.length === 1) {
-        handleSelect(filteredResults[0]);
-      } else {
-        setSelectedUser(null);
-      }
+      setSelectedUser(null);
     } catch (error) {
       setUsers([]);
       setSelectedUser(null);
