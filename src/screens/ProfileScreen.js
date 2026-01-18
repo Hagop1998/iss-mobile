@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,16 @@ const ProfileScreen = ({ navigation }) => {
   const dispatch = useAppDispatch();
   const { user, isAuthenticated, verifyAuthStatus } = useAuth();
   const { userProfile, activeServices, paymentMethods, isLoading } = useAppSelector(state => state.profile);
+  
+  const activeServicesCount = useMemo(() => {
+    if (user?.member?.userSubscription?.subscription?.id) {
+      return 1; 
+    }
+    if (user?.userSubscription?.subscription?.id) {
+      return 1; 
+    }
+    return activeServices?.length || 0;
+  }, [user, activeServices]);
   const { language, modals } = useAppSelector(state => state.app);
   
   const [selectedTab, setSelectedTab] = useState('Profile');
@@ -286,7 +296,7 @@ const ProfileScreen = ({ navigation }) => {
             t('profile.activeServices'),
             null,
             handleActiveServices,
-            `+${activeServices.length}`
+            activeServicesCount > 0 ? `+${activeServicesCount}` : null
           )}
           
           {renderProfileOption(

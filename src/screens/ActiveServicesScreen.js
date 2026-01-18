@@ -91,12 +91,33 @@ const ActiveServicesScreen = ({ navigation }) => {
   };
 
   const isUserSubscribed = (subscriptionId) => {
+    
+    const memberSubscriptionId = user?.member?.userSubscription?.subscription?.id;
+    if (memberSubscriptionId === subscriptionId) {
+      return true;
+    }
+    
+    const ownerSubscriptionId = user?.userSubscription?.subscription?.id;
+    if (ownerSubscriptionId === subscriptionId) {
+      return true;
+    }
+    
     return userSubscriptions.some(userSub => 
       userSub.subscriptionId === subscriptionId || userSub.subscription?.id === subscriptionId
     );
   };
 
   const getUserSubscriptionDetails = (subscriptionId) => {
+    const memberUserSubscription = user?.member?.userSubscription;
+    if (memberUserSubscription?.subscription?.id === subscriptionId) {
+      return memberUserSubscription;
+    }
+    
+    const ownerUserSubscription = user?.userSubscription;
+    if (ownerUserSubscription?.subscription?.id === subscriptionId) {
+      return ownerUserSubscription;
+    }
+    
     return userSubscriptions.find(userSub => 
       userSub.subscriptionId === subscriptionId || userSub.subscription?.id === subscriptionId
     );
