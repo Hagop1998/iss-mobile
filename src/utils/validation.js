@@ -1,6 +1,25 @@
 export const validateEmail = (email) => {
+  if (!email || typeof email !== 'string') {
+    return false;
+  }
+  
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
+  if (!emailRegex.test(email)) {
+    return false;
+  }
+  
+  const parts = email.split('@');
+  if (parts.length !== 2) {
+    return false;
+  }
+  
+  const domainParts = parts[1].split('.');
+  if (domainParts.length < 2) {
+    return false;
+  }
+
+  const tld = domainParts[domainParts.length - 1].toLowerCase();
+    return tld === 'com';
 };
 
 export const validatePassword = (password) => {

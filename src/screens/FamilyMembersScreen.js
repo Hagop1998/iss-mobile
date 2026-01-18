@@ -20,6 +20,7 @@ import { useAuth } from '../hooks/useAuth';
 import { apiService } from '../services/api';
 import { checkAuthStatus } from '../store/slices/authSlice';
 import { parseApiResponse, filterUsers, getUserDisplayName } from '../utils/userHelpers';
+import { validateEmail } from '../utils/validation';
 import UserSearchInput from '../components/UserSearchInput';
 import UserSearchResults from '../components/UserSearchResults';
 import TabBar from '../components/TabBar';
@@ -193,7 +194,8 @@ const FamilyMembersScreen = ({ navigation }) => {
 
   const searchUsers = async (searchType, value, setUsers, setSelectedUser, setIsSearching, handleSelect) => {
     const minLength = searchType === 'phone' ? 3 : 3;
-    const isValidEmail = searchType === 'email' && value.includes('@');
+    // Use validateEmail function to check if email is valid (must end with .com)
+    const isValidEmail = searchType === 'email' && validateEmail(value);
 
     if (!value || value.length < minLength || (searchType === 'email' && !isValidEmail)) {
       setUsers([]);

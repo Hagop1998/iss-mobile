@@ -22,6 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import * as ImagePicker from 'expo-image-picker';
 import { Camera } from 'expo-camera';
+import { validateEmail } from '../utils/validation';
 
 const PersonalInformationScreen = ({ navigation }) => {
   const { t } = useTranslation();
@@ -237,6 +238,15 @@ const PersonalInformationScreen = ({ navigation }) => {
     console.log('💾 Saving user profile...');
     console.log('User ID:', user?.id);
     console.log('Form data to save:', formData);
+    
+    // Validate email if it's being edited
+    if (formData.email && !validateEmail(formData.email)) {
+      Alert.alert(
+        t('common.error'),
+        t('signUp.errors.invalidEmail') || 'Please enter a valid email address ending with .com'
+      );
+      return;
+    }
     
     try {
       const updatePayload = {
