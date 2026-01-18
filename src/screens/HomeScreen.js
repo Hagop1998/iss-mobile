@@ -19,6 +19,8 @@ import ServiceBenefitsModal from '../components/ServiceBenefitsModal';
 import TabBar from '../components/TabBar';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { logoutUser, checkAuthStatus } from '../store/slices/authSlice';
+import { apiService } from '../services/api';
+import { getServiceIcon, getServiceColor } from '../utils/serviceHelpers';
 import { homeScreenStyles as styles } from '../styles/HomeScreen.styles';
 
 // Import images
@@ -49,6 +51,7 @@ const HomeScreen = ({ navigation, route }) => {
   const [addressSearchQuery, setAddressSearchQuery] = useState('');
   const [filteredAddresses, setFilteredAddresses] = useState(MOCK_ADDRESSES);
   const [selectedAddress, setSelectedAddress] = useState(MOCK_ADDRESSES[0]); // Default to first address
+  const [allSubscriptions, setAllSubscriptions] = useState([]); // Owner's subscriptions
 
   // Check verification status whenever screen comes into focus
   useFocusEffect(
@@ -123,6 +126,42 @@ const HomeScreen = ({ navigation, route }) => {
       });
     }
   }, [user?.bio, user?.id]);
+
+  // Fetch owner's subscriptions - only if user has no subscription (user.userSubscription is null)
+  useEffect(() => {
+    const fetchOwnerSubscriptions = async () => {
+      if (!user?.id) return;
+      
+      // If user has subscription (admin selected "yes"), don't fetch owner subscriptions
+      if (user?.userSubscription != null) {
+        setAllSubscriptions([]);
+        return;
+      }
+
+      // If user has no subscription (admin selected "no"), fetch owner's subscriptions to show
+      try {
+        const allSubscriptionsResponse = await apiService.subscriptions.getSubscriptions();
+        console.log('✅ All subscriptions (owner):', allSubscriptionsResponse);
+        
+        let allSubs = [];
+        if (Array.isArray(allSubscriptionsResponse)) {
+          allSubs = allSubscriptionsResponse;
+        } else if (Array.isArray(allSubscriptionsResponse?.data)) {
+          allSubs = allSubscriptionsResponse.data;
+        } else if (Array.isArray(allSubscriptionsResponse?.results)) {
+          allSubs = allSubscriptionsResponse.results;
+        }
+        
+        setAllSubscriptions(allSubs);
+        console.log(`✅ Loaded ${allSubs.length} owner subscriptions`);
+      } catch (error) {
+        console.warn('⚠️ Failed to fetch all subscriptions:', error);
+        setAllSubscriptions([]);
+      }
+    };
+
+    fetchOwnerSubscriptions();
+  }, [user?.id, user?.userSubscription]);
 
   const handleLanguageChange = (languageCode) => {
     i18n.changeLanguage(languageCode);
@@ -234,41 +273,91 @@ const HomeScreen = ({ navigation, route }) => {
     );
   };
 
-  const renderFeatureCard = (iconSource, title, subtitle, isComingSoon = false) => (
+  // Check if user has subscription from /auth/status response
+  // If user.userSubscription exists → admin selected "yes" → enable features
+  // If user.userSubscription is null/undefined → admin selected "no" → disable features
+  const hasSubscription = user?.userSubscription != null;
+  
+  console.log('🔍 Subscription Check:', {
+    hasUserSubscription: hasSubscription,
+    userSubscription: user?.userSubscription ? {
+      id: user.userSubscription.id,
+      status: user.userSubscription.status,
+      subscriptionId: user.userSubscription.subscriptionId,
+      expireDate: user.userSubscription.expireDate,
+    } : null,
+  });
+  
+  const shouldDisableFeature = (title) => {
+    // If user has no subscription (admin selected "no"), disable features
+    if (!hasSubscription) {
+      // Check against translated feature names
+      const disabledFeatures = [
+        t('home.smartIntercom'),
+        t('home.elevator'),
+        t('home.surveillanceCameras'),
+        t('home.barrier')
+      ];
+      return disabledFeatures.includes(title);
+    }
+    return false;
+  };
+
+  const renderFeatureCard = (iconSource, title, subtitle, isComingSoon = false) => {
+    const isDisabled = shouldDisableFeature(title);
+    
+    return (
     <TouchableOpacity 
-      style={styles.featureCard} 
-      onPress={() => !isComingSoon && handleFeaturePress(title)}
-      disabled={isComingSoon}
+      style={[styles.featureCard, isDisabled && styles.featureCardDisabled]} 
+      onPress={() => {
+        if (!isComingSoon && !isDisabled) {
+          handleFeaturePress(title);
+        } else if (isDisabled) {
+          Alert.alert(
+            t('home.noSubscription'),
+            t('home.contactOwnerMessage')
+          );
+        }
+      }}
+      disabled={isComingSoon || isDisabled}
     >
       <View style={styles.featureContent}>
-        <View style={styles.featureIcon}>
+        <View style={[styles.featureIcon, isDisabled && styles.featureIconDisabled]}>
           {iconSource ? (
             <Image 
               source={iconSource} 
-              style={styles.featureIconImage}
+              style={[styles.featureIconImage, isDisabled && styles.featureIconImageDisabled]}
               resizeMode="contain"
               onError={(error) => {
                 console.error('Image load error:', error.nativeEvent.error);
               }}
             />
           ) : (
-            <Ionicons name="settings" size={24} color={colors.black} />
+            <Ionicons name="settings" size={24} color={isDisabled ? colors.gray[400] : colors.black} />
+          )}
+          {isDisabled && (
+            <View style={styles.lockIconOverlay}>
+              <Ionicons name="lock-closed" size={20} color={colors.gray[500]} />
+            </View>
           )}
         </View>
         <View style={styles.featureText}>
-          <Text style={styles.featureTitle}>{title}</Text>
-          {subtitle && <Text style={styles.featureSubtitle}>{subtitle}</Text>}
+          <Text style={[styles.featureTitle, isDisabled && styles.featureTitleDisabled]}>{title}</Text>
+          {subtitle && <Text style={[styles.featureSubtitle, isDisabled && styles.featureSubtitleDisabled]}>{subtitle}</Text>}
         </View>
         {isComingSoon ? (
           <View style={styles.comingSoonBadge}>
             <Text style={styles.comingSoonText}>{t('home.comingSoon')}</Text>
           </View>
+        ) : isDisabled ? (
+          <Ionicons name="lock-closed" size={20} color={colors.gray[400]} />
         ) : (
           <Ionicons name="chevron-forward" size={20} color={colors.gray[400]} />
         )}
       </View>
     </TouchableOpacity>
-  );
+    );
+  };
 
 
   return (
@@ -285,6 +374,45 @@ const HomeScreen = ({ navigation, route }) => {
         showsVerticalScrollIndicator={false}
       >
         {renderLocationCard()}
+        
+        {/* Show message and owner subscriptions if user has no subscription */}
+        {!hasSubscription && allSubscriptions.length > 0 && (
+          <View style={styles.noSubscriptionContainer}>
+            <View style={styles.messageBanner}>
+              <Ionicons name="information-circle" size={24} color={colors.primary} />
+              <View style={styles.messageContent}>
+                <Text style={styles.messageTitle}>{t('home.noSubscription')}</Text>
+                <Text style={styles.messageText}>{t('home.contactOwnerMessage')}</Text>
+              </View>
+            </View>
+            
+            <View style={styles.ownerSubscriptionsContainer}>
+              <Text style={styles.ownerSubscriptionsTitle}>{t('home.ownerSubscriptions')}</Text>
+              {allSubscriptions.map((subscription) => {
+                const serviceName = subscription.name || subscription.service_name || 'Service';
+                const serviceIcon = getServiceIcon(serviceName);
+                const serviceColor = getServiceColor(serviceName);
+                
+                return (
+                  <View key={subscription.id} style={styles.ownerSubscriptionCard}>
+                    <View style={[styles.ownerSubscriptionIcon, { backgroundColor: serviceColor + '20' }]}>
+                      <Ionicons name={serviceIcon} size={24} color={serviceColor} />
+                    </View>
+                    <View style={styles.ownerSubscriptionInfo}>
+                      <Text style={styles.ownerSubscriptionName}>{serviceName}</Text>
+                      {subscription.description && (
+                        <Text style={styles.ownerSubscriptionDescription}>{subscription.description}</Text>
+                      )}
+                    </View>
+                    <View style={styles.ownerSubscriptionBadge}>
+                      <Ionicons name="lock-closed" size={16} color={colors.gray[500]} />
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
         
         <View style={styles.featuresContainer}>
           {renderFeatureCard(smartLockerIcon, t('home.smartIntercom'))}

@@ -73,6 +73,9 @@ const resources = {
         logout: 'Logout',
         logoutConfirm: 'Are you sure you want to logout?',
         cancel: 'Cancel',
+        noSubscription: 'No Subscription',
+        contactOwnerMessage: 'You don\'t have an active subscription. Please contact the owner for an invitation to access these features.',
+        ownerSubscriptions: 'Owner Subscriptions',
       },
       profile: {
         personalInformation: 'Personal Information',
@@ -422,6 +425,9 @@ const resources = {
         logout: 'Ելք',
         logoutConfirm: 'Վստա՞հ եք, որ ցանկանում եք ելնել:',
         cancel: 'Չեղարկել',
+        noSubscription: 'Բաժանորդագրություն Չկա',
+        contactOwnerMessage: 'Դուք չունեք ակտիվ բաժանորդագրություն: Խնդրում ենք կապ հաստատել տիրոջ հետ այս հնարավորություններին մուտք գործելու համար:',
+        ownerSubscriptions: 'Տիրոջ Բաժանորդագրություններ',
       },
       profile: {
         personalInformation: 'Անձնական Տվյալներ',
@@ -771,6 +777,9 @@ const resources = {
         logout: 'Выйти',
         logoutConfirm: 'Вы уверены, что хотите выйти?',
         cancel: 'Отмена',
+        noSubscription: 'Нет Подписки',
+        contactOwnerMessage: 'У вас нет активной подписки. Пожалуйста, свяжитесь с владельцем для получения приглашения для доступа к этим функциям.',
+        ownerSubscriptions: 'Подписки Владельца',
       },
       profile: {
         personalInformation: 'Личная Информация',

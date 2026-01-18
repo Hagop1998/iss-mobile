@@ -73,6 +73,10 @@ export const homeScreenStyles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  featureCardDisabled: {
+    opacity: 0.5,
+    backgroundColor: colors.gray[50],
+  },
   featureContent: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -86,10 +90,29 @@ export const homeScreenStyles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 16,
     overflow: 'hidden',
+    position: 'relative',
+  },
+  featureIconDisabled: {
+    backgroundColor: colors.gray[200],
+    opacity: 0.6,
   },
   featureIconImage: {
     width: 40,
     height: 40,
+  },
+  featureIconImageDisabled: {
+    opacity: 0.4,
+  },
+  lockIconOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   featureText: {
     flex: 1,
@@ -100,9 +123,15 @@ export const homeScreenStyles = StyleSheet.create({
     color: colors.text.primary,
     marginBottom: 4,
   },
+  featureTitleDisabled: {
+    color: colors.text.secondary,
+  },
   featureSubtitle: {
     fontSize: 14,
     color: colors.text.secondary,
+  },
+  featureSubtitleDisabled: {
+    color: colors.gray[400],
   },
   comingSoonBadge: {
     backgroundColor: colors.primary,
@@ -200,5 +229,84 @@ export const homeScreenStyles = StyleSheet.create({
     fontSize: 14,
     color: colors.gray[400],
     marginTop: 8,
+  },
+  noSubscriptionContainer: {
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  messageBanner: {
+    backgroundColor: colors.blue?.[50] || '#EFF6FF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    borderLeftWidth: 4,
+    borderLeftColor: colors.primary || '#3C0056',
+  },
+  messageContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  messageTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text.primary,
+    marginBottom: 6,
+  },
+  messageText: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    lineHeight: 20,
+  },
+  ownerSubscriptionsContainer: {
+    marginBottom: 20,
+  },
+  ownerSubscriptionsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text.primary,
+    marginBottom: 12,
+  },
+  ownerSubscriptionCard: {
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.gray[200],
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  ownerSubscriptionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  ownerSubscriptionInfo: {
+    flex: 1,
+  },
+  ownerSubscriptionName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text.primary,
+    marginBottom: 4,
+  },
+  ownerSubscriptionDescription: {
+    fontSize: 14,
+    color: colors.text.secondary,
+  },
+  ownerSubscriptionBadge: {
+    padding: 8,
+    backgroundColor: colors.gray[100],
+    borderRadius: 20,
   },
 });
