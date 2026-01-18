@@ -21,6 +21,7 @@ import { apiService } from '../services/api';
 import { checkAuthStatus } from '../store/slices/authSlice';
 import { parseApiResponse, filterUsers, getUserDisplayName } from '../utils/userHelpers';
 import { validateEmail } from '../utils/validation';
+import { useDebounce } from '../hooks/useDebounce';
 import UserSearchInput from '../components/UserSearchInput';
 import UserSearchResults from '../components/UserSearchResults';
 import TabBar from '../components/TabBar';
@@ -46,24 +47,21 @@ const FamilyMembersScreen = ({ navigation }) => {
   const [isSearchingEmail, setIsSearchingEmail] = useState(false);
   const [selectedTab, setSelectedTab] = useState('Family');
 
+  const debouncedEmail = useDebounce(inviteEmail, 500);
+
   useEffect(() => {
     fetchFamilyMembers();
     fetchPendingInvitations();
   }, []);
 
-
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (inviteEmail.trim().length > 0 && inviteEmail.includes('@')) {
-        searchUserByEmail(inviteEmail.trim());
-      } else {
-        setEmailUsers([]);
-        setSelectedEmailUser(null);
-      }
-    }, 500);
-
-    return () => clearTimeout(timeoutId);
-  }, [inviteEmail]);
+    if (debouncedEmail.trim().length > 0 && debouncedEmail.includes('@')) {
+      searchUserByEmail(debouncedEmail.trim());
+    } else {
+      setEmailUsers([]);
+      setSelectedEmailUser(null);
+    }
+  }, [debouncedEmail]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -112,17 +110,16 @@ const FamilyMembersScreen = ({ navigation }) => {
       const response = await dispatch(checkAuthStatus()).unwrap();
       
       // Check if invitations are in familyMembers with pending status
-      const allFamilyData = response?.member.userSubscription?.familyMembers || [];
+      // Response is the user object directly, not nested under 'member'
+      const allFamilyData = response?.userSubscription?.familyMembers || [];
       const pending = allFamilyData.filter(member => 
         member.status === 'pending' || 
         member.role === 'pending' ||
-        !member.user // If user is null, it might be a pending invitation
+        !member.user 
       );
       
-      // Transform pending invitations
       const transformedInvitations = pending.map(invitation => {
-        // If this is an invitation where the current user is the invitee,
-        // the owner info might be in the subscription owner
+     
         const owner = response?.userSubscription?.user || response?.user;
         
         return {
