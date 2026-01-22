@@ -49,6 +49,9 @@ const FamilyMembersScreen = ({ navigation }) => {
 
   const debouncedEmail = useDebounce(inviteEmail, 500);
 
+  // Check if current user is the owner (can invite members)
+  const isOwner = user?.userSubscription?.userId === user?.id;
+
   useEffect(() => {
     console.log('🔍 FamilyMembersScreen - User state:', {
       hasUser: !!user,
@@ -143,13 +146,50 @@ const FamilyMembersScreen = ({ navigation }) => {
     try {
       setIsLoadingInvitations(true);
       
-      // Check if user has userSubscription from current user state first
-      // If user has no userSubscription (not owner), call /users/invitation/me directly
-      if (!user?.userSubscription) {
+      const response = await dispatch(checkAuthStatus()).unwrap();
+      const currentUserId = response?.id || user?.id;
+      
+      // If user is owner, get invitations from their userSubscription.familyMembers
+      if (user?.userSubscription || response?.userSubscription) {
+        const allFamilyData = response?.userSubscription?.familyMembers || [];
+        const pending = allFamilyData.filter(member => {
+          const isCurrentUser = member.userId === currentUserId;
+          const notAccepted = !member.acceptedAt;
+          return isCurrentUser && notAccepted;
+        });
+        
+        console.log('🔍 Owner checking for pending invitations:', {
+          currentUserId,
+          allFamilyMembers: allFamilyData.length,
+          pendingCount: pending.length,
+        });
+        
+        const transformedInvitations = pending.map(invitation => {
+          const subscriptionOwnerId = response?.userSubscription?.userId;
+          const ownerMember = allFamilyData.find(member => member.role === 'owner');
+          const owner = ownerMember?.user || response?.userSubscription?.user || response?.user;
+          
+          return {
+            id: invitation.id,
+            invitationId: invitation.id,
+            userSubscriptionId: invitation.userSubscriptionId,
+            ownerId: owner?.id || subscriptionOwnerId,
+            owner: owner,
+            firstName: owner?.firstName || '',
+            lastName: owner?.lastName || '',
+            email: owner?.email || '',
+            phone: owner?.phone || '',
+            invitedAt: invitation.invitedAt || invitation.createdAt,
+          };
+        });
+
+        setPendingInvitations(transformedInvitations);
+      } else {
+        // If user is NOT owner (member), call /users/invitation/me to get their pending invitations
+        // This is called when user explicitly navigates to FamilyMembersScreen
+        console.log('🔍 Member checking for pending invitations via /users/invitation/me');
         try {
-          console.log('🔍 User has no userSubscription, calling /users/invitation/me');
           const invitationsResponse = await apiService.user.getMyInvitations();
-          console.log('✅ Response from /users/invitation/me:', JSON.stringify(invitationsResponse, null, 2));
           
           let invitationsData = [];
           if (Array.isArray(invitationsResponse)) {
@@ -164,14 +204,12 @@ const FamilyMembersScreen = ({ navigation }) => {
             invitationsData = [invitationsResponse];
           }
           
-          console.log('📋 Parsed invitations data:', JSON.stringify(invitationsData, null, 2));
-          console.log(`📊 Found ${invitationsData.length} invitations`);
+          console.log(`📊 Found ${invitationsData.length} pending invitations for member`);
           
           const transformedInvitations = invitationsData.map(invitation => {
-            console.log('invitation', invitation);
             return {
               id: invitation.id,
-              invitationId: invitation.id, 
+              invitationId: invitation.id,
               userSubscriptionId: invitation.userSubscriptionId,
               ownerId: invitation.ownerId || invitation.owner?.id || invitation.userSubscription?.userId,
               owner: invitation.owner || invitation.userSubscription?.user,
@@ -179,49 +217,16 @@ const FamilyMembersScreen = ({ navigation }) => {
               lastName: invitation.owner?.lastName || invitation.lastName || invitation.userSubscription?.user?.lastName || '',
               email: invitation.owner?.email || invitation.email || invitation.userSubscription?.user?.email || '',
               phone: invitation.owner?.phone || invitation.phone || invitation.userSubscription?.user?.phone || '',
-              invitedAt: invitation.invitedAt || invitation.createdAt || invitation.invitedAt || new Date().toISOString(),
+              invitedAt: invitation.invitedAt || invitation.createdAt || new Date().toISOString(),
             };
           });
           
-          console.log(`✅ Transformed ${transformedInvitations.length} invitations`);
           setPendingInvitations(transformedInvitations);
         } catch (error) {
           console.error('❌ Error fetching invitations from /users/invitation/me:', error);
-          console.error('Error details:', JSON.stringify(error, null, 2));
           setPendingInvitations([]);
         }
-        return;
       }
-      
-      // If user has userSubscription (owner), fetch status and use existing logic
-      const response = await dispatch(checkAuthStatus()).unwrap();
-      const allFamilyData = response?.userSubscription?.familyMembers || [];
-      const currentUserId = response?.id || user?.id;
-      const pending = allFamilyData.filter(member => 
-        !member.acceptedAt && 
-        member.userId === currentUserId 
-      );
-      
-      const transformedInvitations = pending.map(invitation => {
-        const subscriptionOwnerId = response?.userSubscription?.userId;
-        const ownerMember = allFamilyData.find(member => member.role === 'owner');
-        const owner = ownerMember?.user || response?.userSubscription?.user || response?.user;
-        
-        return {
-          id: invitation.id,
-          invitationId: invitation.id, // Use id (8) for PATCH request
-          userSubscriptionId: invitation.userSubscriptionId,
-          ownerId: owner?.id || subscriptionOwnerId,
-          owner: owner,
-          firstName: owner?.firstName || '',
-          lastName: owner?.lastName || '',
-          email: owner?.email || '',
-          phone: owner?.phone || '',
-          invitedAt: invitation.invitedAt || invitation.createdAt,
-        };
-      });
-
-      setPendingInvitations(transformedInvitations);
     } catch (error) {
       console.error('Error fetching pending invitations:', error);
       setPendingInvitations([]);
@@ -232,18 +237,44 @@ const FamilyMembersScreen = ({ navigation }) => {
 
   const handleAcceptInvitation = async (invitationId) => {
     try {
+      console.log('✅ User accepting invitation:', invitationId);
+      
+      // Accept the invitation
       await apiService.family.acceptInvitation(invitationId);
-      await dispatch(checkAuthStatus()).unwrap();
+      
+      // Call /users/invitation/me endpoint after accepting to refresh invitation status
+      console.log('📞 Calling /users/invitation/me after acceptance');
+      await apiService.user.getMyInvitations();
+      
+      // Refresh auth status to get updated userSubscription
+      console.log('🔄 Refreshing auth status to get subscription...');
+      const statusResponse = await dispatch(checkAuthStatus()).unwrap();
+      console.log('✅ Auth status refreshed:', JSON.stringify(statusResponse, null, 2));
+      
+      // Check if user now has subscription
+      const hasSubscription = statusResponse?.userSubscription || 
+                              statusResponse?.member?.userSubscription ||
+                              user?.userSubscription;
+      
+      console.log('🔍 Subscription after acceptance:', {
+        hasSubscription: !!hasSubscription,
+        hasUserSubscription: !!statusResponse?.userSubscription,
+        hasMemberSubscription: !!statusResponse?.member?.userSubscription,
+      });
       
       Alert.alert(
         t('family.success'),
-        t('family.acceptSuccess'),
+        hasSubscription 
+          ? t('family.acceptSuccess') + '\n\nSubscription is now active!'
+          : t('family.acceptSuccess'),
         [
           {
             text: t('common.ok'),
             onPress: () => {
               fetchPendingInvitations();
               fetchFamilyMembers();
+              // Navigate to Home to see enabled features
+              navigation.navigate('Home');
             },
           },
         ]
@@ -410,10 +441,29 @@ const FamilyMembersScreen = ({ navigation }) => {
     }
   };
 
-  const handleRemoveMember = (memberId) => {
+  const handleRemoveMember = (memberId, memberUserId) => {
+    const currentUserId = user?.id;
+    const isCurrentUserOwner = user?.userSubscription?.userId === currentUserId;
+    const isDeletingSelf = memberUserId === currentUserId || memberId === currentUserId;
+    
+    // Determine if deletion is allowed
+    const canDelete = isCurrentUserOwner || isDeletingSelf;
+    
+    if (!canDelete) {
+      Alert.alert(
+        t('family.error'),
+        t('family.cannotDeleteOtherMembers')
+      );
+      return;
+    }
+
+    const confirmMessage = isDeletingSelf 
+      ? t('family.removeSelfConfirm')
+      : t('family.removeConfirm');
+    
     Alert.alert(
-      t('family.removeMember'),
-      t('family.removeConfirm'),
+      isDeletingSelf ? t('family.removeSelf') : t('family.removeMember'),
+      confirmMessage,
       [
         { text: t('common.cancel'), style: 'cancel' },
         {
@@ -423,7 +473,17 @@ const FamilyMembersScreen = ({ navigation }) => {
             try {
               await apiService.user.removeFamilyMember(memberId);
               Alert.alert(t('family.success'), t('family.removeSuccess'));
+              
+              // If user deleted themselves, they should be logged out or lose subscription access
+              if (isDeletingSelf) {
+                // Refresh auth status to update subscription
+                await dispatch(checkAuthStatus()).unwrap();
+                // Navigate to home to see updated state
+                navigation.navigate('Home');
+              }
+              
               fetchFamilyMembers();
+              fetchPendingInvitations();
             } catch (error) {
               const errorMessage = error?.data?.message || error?.message || t('family.removeError');
               Alert.alert(t('family.error'), errorMessage);
@@ -476,9 +536,19 @@ const FamilyMembersScreen = ({ navigation }) => {
 
   const renderMemberCard = (member) => {
     const isOwner = member.role === 'owner';
-    const isCurrentUser = member.userId === user?.id || member.id === user?.id;
-    const isCurrentUserOwner = user?.userSubscription?.userId === user?.id; // Current user is the owner of the subscription
+    const currentUserId = user?.id;
+    const memberUserId = member.userId || member.id;
+    const isCurrentUser = memberUserId === currentUserId;
+    const isCurrentUserOwner = user?.userSubscription?.userId === currentUserId; // Current user is the owner of the subscription
     const displayName = getUserDisplayName(member);
+
+    // Determine if delete button should be shown:
+    // 1. Owner can delete all members (including themselves if needed)
+    // 2. Member can only delete themselves
+    const canDelete = isCurrentUserOwner || (isCurrentUser && !isOwner);
+    
+    // Don't show delete button for owner when viewing as non-owner (but owner can delete themselves)
+    const showDeleteButton = canDelete && (isCurrentUserOwner || isCurrentUser);
 
     return (
       <View key={member.id} style={styles.memberCard}>
@@ -526,10 +596,10 @@ const FamilyMembersScreen = ({ navigation }) => {
           </View>
         </View>
         
-        {((isCurrentUserOwner && !isCurrentUser) || (isCurrentUser && !isOwner)) && (
+        {showDeleteButton && (
           <TouchableOpacity
             style={styles.removeButton}
-            onPress={() => handleRemoveMember(member.id)}
+            onPress={() => handleRemoveMember(member.id, memberUserId)}
           >
             <Ionicons name="trash-outline" size={20} color={colors.red[500]} />
           </TouchableOpacity>
@@ -664,8 +734,8 @@ const FamilyMembersScreen = ({ navigation }) => {
               </View>
             )}
           </View>
-          {/* Only show invite button if user has userSubscription (is owner) */}
-          {user?.userSubscription && (
+          {/* Only show invite button if user is the owner */}
+          {isOwner && (
             <TouchableOpacity
               style={styles.inviteButtonHeader}
               onPress={() => setShowInviteModal(true)}
@@ -686,8 +756,8 @@ const FamilyMembersScreen = ({ navigation }) => {
             <Ionicons name="people-outline" size={64} color={colors.gray[400]} />
             <Text style={styles.emptyText}>{t('family.noMembers')}</Text>
             <Text style={styles.emptySubtext}>{t('family.inviteFirst')}</Text>
-            {/* Only show invite button if user has userSubscription (is owner) */}
-            {user?.userSubscription && (
+            {/* Only show invite button if user is the owner */}
+            {isOwner && (
               <TouchableOpacity
                 style={styles.emptyInviteButton}
                 onPress={() => setShowInviteModal(true)}

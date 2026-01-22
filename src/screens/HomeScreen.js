@@ -228,22 +228,42 @@ const HomeScreen = ({ navigation, route }) => {
   };
 
   // Check if user has subscription from /auth/status response
-  // If user.userSubscription exists → admin selected "yes" → enable features
-  // If user.userSubscription is null/undefined → admin selected "no" → disable features
-  const hasSubscription = user?.userSubscription != null;
+  // Owner: user.userSubscription exists and they are the owner
+  // Accepted member: user.member.userSubscription exists (moved to user.userSubscription by authSlice) AND acceptedAt is not null
+  // IMPORTANT: Members should NOT have subscription access until they accept invitation (acceptedAt is not null)
+  
+  const currentUserId = user?.id;
+  const familyMembers = user?.userSubscription?.familyMembers || [];
+  const memberRecord = familyMembers.find(m => m.userId === currentUserId);
+  const hasPendingInvitation = memberRecord && !memberRecord.acceptedAt;
+  
+  // Check if user is the owner of the subscription
+  const isOwner = user?.userSubscription?.userId === currentUserId;
+  
+  // User has subscription only if:
+  // 1. They are the owner (isOwner is true), OR
+  // 2. They are a member who has accepted (memberRecord exists AND acceptedAt is not null)
+  // If they have pending invitation (acceptedAt is null), they should NOT have subscription
+  const hasSubscription = isOwner || (memberRecord?.acceptedAt != null);
   
   console.log('🔍 Subscription Check:', {
-    hasUserSubscription: hasSubscription,
-    userSubscription: user?.userSubscription ? {
-      id: user.userSubscription.id,
-      status: user.userSubscription.status,
-      subscriptionId: user.userSubscription.subscriptionId,
-      expireDate: user.userSubscription.expireDate,
+    currentUserId,
+    isOwner,
+    hasUserSubscription: !!user?.userSubscription,
+    hasMemberSubscription: !!user?.member?.userSubscription,
+    memberRecord: memberRecord ? {
+      id: memberRecord.id,
+      userId: memberRecord.userId,
+      acceptedAt: memberRecord.acceptedAt,
+      role: memberRecord.role
     } : null,
+    hasPendingInvitation,
+    hasSubscription,
   });
   
+  
   const shouldDisableFeature = (title) => {
-    // If user has no subscription (admin selected "no"), disable features
+    // If user has no subscription, disable features
     if (!hasSubscription) {
       // Check against translated feature names
       const disabledFeatures = [
@@ -269,7 +289,17 @@ const HomeScreen = ({ navigation, route }) => {
         } else if (isDisabled) {
           Alert.alert(
             t('home.noSubscription'),
-            t('home.contactOwnerMessage')
+            t('home.contactOwnerMessage') || 'Please contact the subscription owner or check Family Members for pending invitations.',
+            [
+              {
+                text: t('home.checkFamilyMembers') || 'Check Family Members',
+                onPress: () => navigation.navigate('FamilyMembers')
+              },
+              {
+                text: t('common.ok') || 'OK',
+                style: 'cancel'
+              }
+            ]
           );
         }
       }}

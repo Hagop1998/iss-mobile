@@ -316,21 +316,92 @@ const authSlice = createSlice({
           updatedUser = { ...state.user, ...action.payload.user, token: currentToken };
         } else if (action.payload) {
           console.log('Updating user data from status response (flat structure)');
-          // Handle case where userSubscription is nested in member object (for non-owner members)
-          if (action.payload.member?.userSubscription && !action.payload.userSubscription) {
-            console.log('Found userSubscription in member object, moving to top level');
-            updatedUser = { 
-              ...state.user, 
-              ...action.payload, 
-              userSubscription: action.payload.member.userSubscription,
-              token: currentToken 
-            };
-            // Remove member object if it's not needed elsewhere
-            if (updatedUser.member) {
-              delete updatedUser.member;
+          const currentUserId = action.payload.id || state.user?.id;
+          
+          // First, check if userSubscription exists directly in payload
+          if (action.payload.userSubscription) {
+            const userSubscription = action.payload.userSubscription;
+            const isOwner = userSubscription.userId === currentUserId;
+            
+            if (isOwner) {
+              console.log('✅ User is owner - setting userSubscription directly');
+              updatedUser = { ...state.user, ...action.payload, token: currentToken };
+            } else {
+              // User has userSubscription but is not owner - check if they're an accepted member
+              const familyMembers = userSubscription?.familyMembers || [];
+              const memberRecord = familyMembers.find(m => m.userId === currentUserId);
+              
+              console.log('🔍 Checking if user is accepted member:', {
+                currentUserId,
+                ownerId: userSubscription.userId,
+                familyMembersCount: familyMembers.length,
+                memberRecord: memberRecord ? {
+                  id: memberRecord.id,
+                  userId: memberRecord.userId,
+                  acceptedAt: memberRecord.acceptedAt,
+                  role: memberRecord.role
+                } : null
+              });
+              
+              if (memberRecord?.acceptedAt) {
+                console.log('✅ User is accepted member - setting userSubscription');
+                updatedUser = { ...state.user, ...action.payload, token: currentToken };
+              } else {
+                console.log('⚠️ User has userSubscription but is NOT accepted member - clearing it');
+                updatedUser = { ...state.user, ...action.payload, token: currentToken };
+                delete updatedUser.userSubscription;
+              }
             }
-          } else {
+          } 
+          // Handle case where userSubscription is nested in member object (for non-owner members)
+          else if (action.payload.member?.userSubscription) {
+            const memberUserSubscription = action.payload.member.userSubscription;
+            // Check if member has accepted invitation by checking familyMembers in the member's userSubscription
+            const familyMembers = memberUserSubscription?.familyMembers || [];
+            const memberRecord = familyMembers.find(m => m.userId === currentUserId);
+            
+            console.log('🔍 Checking member acceptance in nested structure:', {
+              currentUserId,
+              familyMembersCount: familyMembers.length,
+              memberRecord: memberRecord ? {
+                id: memberRecord.id,
+                userId: memberRecord.userId,
+                acceptedAt: memberRecord.acceptedAt,
+                role: memberRecord.role
+              } : null
+            });
+            
+            // Only set subscription if member has accepted (acceptedAt is not null)
+            if (memberRecord?.acceptedAt) {
+              console.log('✅ Found userSubscription in member object, member has accepted - moving to top level');
+              updatedUser = { 
+                ...state.user, 
+                ...action.payload, 
+                userSubscription: action.payload.member.userSubscription,
+                token: currentToken 
+              };
+              // Remove member object if it's not needed elsewhere
+              if (updatedUser.member) {
+                delete updatedUser.member;
+              }
+            } else {
+              console.log('⚠️ Member has NOT accepted invitation yet (acceptedAt is null) - NOT setting userSubscription');
+              // Don't set userSubscription if invitation not accepted
+              updatedUser = { ...state.user, ...action.payload, token: currentToken };
+              // Clear any existing userSubscription if invitation was not accepted
+              if (updatedUser.userSubscription) {
+                delete updatedUser.userSubscription;
+              }
+            }
+          } 
+          else {
+            // No userSubscription found - user doesn't have subscription
+            console.log('⚠️ No userSubscription found in response');
             updatedUser = { ...state.user, ...action.payload, token: currentToken };
+            // Clear any existing userSubscription
+            if (updatedUser.userSubscription) {
+              delete updatedUser.userSubscription;
+            }
           }
         } else {
           console.warn('⚠️ No payload received from checkAuthStatus');
