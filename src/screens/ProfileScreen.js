@@ -11,9 +11,10 @@ import {
   Linking,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { fetchUserProfile, fetchActiveServices, fetchPaymentMethods } from '../store/slices/profileSlice';
-import { logoutUser } from '../store/slices/authSlice';
+import { logoutUser, checkAuthStatus } from '../store/slices/authSlice';
 import { setLanguage, showModal, hideModal } from '../store/slices/appSlice';
 import { useAuth } from '../hooks/useAuth';
 import { apiService } from '../services/api';
@@ -32,6 +33,7 @@ const ProfileScreen = ({ navigation }) => {
   
   const [selectedTab, setSelectedTab] = useState('Profile');
   
+  // Initial load - only when user ID changes
   useEffect(() => {
     if (user?.id) {
       dispatch(fetchUserProfile(user.id));
@@ -42,7 +44,21 @@ const ProfileScreen = ({ navigation }) => {
       console.warn('⚠️ No user ID available, skipping profile fetch');
       setActiveServicesCount(0);
     }
-  }, [user?.id, user?.member?.userSubscription, user?.userSubscription, dispatch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]); // Only depend on user ID, not subscription changes
+
+  // Refresh user data when screen comes into focus (only refresh auth, don't refetch profile)
+  useFocusEffect(
+    React.useCallback(() => {
+      if (user?.token) {
+        console.log('🔄 ProfileScreen focused - refreshing auth status for avatar...');
+        // Only refresh auth status to get updated avatar, don't refetch profile data
+        dispatch(checkAuthStatus()).catch((error) => {
+          console.warn('⚠️ Failed to refresh auth status:', error);
+        });
+      }
+    }, [dispatch, user?.token]) // Only depend on token, not user object
+  );
 
   const fetchActiveServicesCount = async () => {
     try {
@@ -259,7 +275,8 @@ const ProfileScreen = ({ navigation }) => {
   const renderProfileHeader = () => {
     const firstName = user?.firstName || userProfile?.firstName || '';
     const lastName = user?.lastName || userProfile?.lastName || '';
-    const profileImage = user?.profileImage || userProfile?.profileImage;
+    // Check for avatar in multiple possible locations
+    const profileImage = user?.avatar || user?.profileImage || userProfile?.profileImage || userProfile?.avatar;
     const displayName = firstName && lastName ? `${firstName} ${lastName}` : user?.email || 'User';
     
     return (

@@ -121,12 +121,12 @@ const PersonalInformationScreen = ({ navigation }) => {
   }, [updateError, t, dispatch]);
 
   useEffect(() => {
-    if (userProfile?.profileImage) {
-      setProfileImage(userProfile.profileImage);
-    } else if (user?.profileImage) {
-      setProfileImage(user.profileImage);
+    // Check for avatar in multiple possible locations
+    const avatarUrl = user?.avatar || user?.profileImage || userProfile?.profileImage || userProfile?.avatar;
+    if (avatarUrl) {
+      setProfileImage(avatarUrl);
     }
-  }, [userProfile?.profileImage, user?.profileImage]);
+  }, [user?.avatar, user?.profileImage, userProfile?.profileImage, userProfile?.avatar]);
 
 
   const handleInputChange = (field, value) => {
@@ -256,21 +256,32 @@ const PersonalInformationScreen = ({ navigation }) => {
         const selectedImage = result.assets[0];
         console.log('📸 Image selected:', selectedImage.uri);
         
+        // Show temporary preview
         setProfileImage(selectedImage.uri);
         
         try {
-          await dispatch(uploadProfileImage({ 
+          const uploadResult = await dispatch(uploadProfileImage({ 
             uri: selectedImage.uri,
             type: selectedImage.type || 'image',
             fileName: selectedImage.fileName || 'profile.jpg'
           })).unwrap();
           
+          // Update profile image with the URL from server
+          if (uploadResult?.profileImage) {
+            setProfileImage(uploadResult.profileImage);
+          }
+          
+          // Refresh user data to get updated avatar
+          await dispatch(checkAuthStatus()).unwrap();
+          
           Alert.alert(t('common.success'), t('profile.imageUpdated'));
-          console.log('✅ Profile image uploaded successfully');
+          console.log('✅ Profile image uploaded and profile updated successfully');
         } catch (uploadError) {
           console.error('❌ Failed to upload image:', uploadError);
+          // Revert to original image
+          const originalImage = userProfile?.profileImage || user?.profileImage || user?.avatar;
+          setProfileImage(originalImage);
           Alert.alert(t('common.error'), uploadError || t('profile.imageUpdateFailed'));
-          setProfileImage(userProfile.profileImage);
         }
       } else {
         console.log('📸 Image selection cancelled');

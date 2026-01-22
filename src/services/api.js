@@ -22,6 +22,7 @@ export const endpoints = {
   user: {
     profile: '/user/profile',
     updateProfile: '/user/profile',
+    updateUserProfile: '/users/profile',
     updateUser: '/users',
     changePassword: '/users/change-password',
     deleteAccount: '/user/delete',
@@ -347,6 +348,10 @@ export const apiService = {
   user: {
     getProfile: () => apiClient.get(endpoints.user.profile),
     updateProfile: (data) => apiClient.put(endpoints.user.updateProfile, data),
+    updateUserProfile: (data) => {
+      console.log('🔄 Updating user profile with data:', data);
+      return apiClient.request('PATCH', endpoints.user.updateUserProfile, { data });
+    },
     updateUser: (userId, data) => {
       console.log(`🔄 Updating user ${userId} with data:`, data);
       return apiClient.request('PATCH', `${endpoints.user.updateUser}/${userId}`, { data });

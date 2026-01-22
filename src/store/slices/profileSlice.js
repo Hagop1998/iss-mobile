@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import apiService from '../../services/api';
+import { apiService } from '../../services/api';
 import { imageSizeEnum, entityTypeEnum } from '../../constants/enums';
 import * as ImageManipulator from 'expo-image-manipulator';
 
@@ -66,15 +66,22 @@ export const updateUserProfile = createAsyncThunk(
 
 export const uploadProfileImage = createAsyncThunk(
   'profile/uploadProfileImage',
-  async (imageData, { rejectWithValue }) => {
+  async (imageData, { rejectWithValue, getState }) => {
     try {
       console.log('📤 Uploading profile image...');
       
-      const targetSize = imageSizeEnum.medium; 
+      const state = getState();
+      const userId = state.auth?.user?.id;
+      
+      if (!userId) {
+        throw new Error('User ID is required for avatar upload');
+      }
+      
+      const targetSize = '640x480'; // As specified by user
       const [targetWidth, targetHeight] = targetSize.split('x').map(Number);
       
       console.log('🔄 Resizing profile image to', targetSize, 'on frontend...');
-      console.log('📐 Target dimensions from enum:', targetWidth, 'x', targetHeight);
+      console.log('📐 Target dimensions:', targetWidth, 'x', targetHeight);
       
       let resizedImage;
       try {
@@ -105,9 +112,15 @@ export const uploadProfileImage = createAsyncThunk(
         name: `avatar.${fileExtension}`,
       });
       
-      formData.append('source', entityTypeEnum.AVATAR);
+      formData.append('size', targetSize);
+      formData.append('source', 'avatar');
+      formData.append('entityId', userId.toString());
       
-      console.log('📤 Uploading profile image with source:', entityTypeEnum.AVATAR);
+      console.log('📤 Uploading profile image with:', {
+        size: targetSize,
+        source: 'avatar',
+        entityId: userId,
+      });
       
       const uploadResponse = await apiService.media.upload(formData);
       console.log('📥 Profile image upload response:', uploadResponse);
@@ -136,7 +149,20 @@ export const uploadProfileImage = createAsyncThunk(
         throw new Error('Failed to get image URL from upload response');
       }
 
-      console.log('✅ Profile image uploaded successfully:', imageUrl);
+      console.log('✅ Profile image uploaded successfully, URL:', imageUrl);
+      
+      // After successful upload, update user profile with avatar URL
+      console.log('🔄 Updating user profile with avatar URL...');
+      try {
+        const updateResponse = await apiService.user.updateUserProfile({
+          avatar: imageUrl,
+        });
+        console.log('✅ User profile updated with avatar:', updateResponse);
+      } catch (updateError) {
+        console.error('❌ Failed to update profile with avatar URL:', updateError);
+        // Don't throw here - upload was successful, just profile update failed
+        // The avatar URL is still returned so it can be used
+      }
       
       return {
         profileImage: imageUrl,

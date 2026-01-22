@@ -1,11 +1,16 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
+import { useAuth } from '../hooks/useAuth';
 
 const TabBar = ({ activeTab, onTabPress, navigation }) => {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  
+  // Get avatar from user object
+  const userAvatar = user?.avatar || user?.profileImage;
 
   const tabs = [
     {
@@ -56,7 +61,15 @@ const TabBar = ({ activeTab, onTabPress, navigation }) => {
           >
             {tab.isProfile ? (
               <View style={styles.profileIcon}>
-                <Ionicons name={tab.icon} size={20} color={colors.white} />
+                {userAvatar ? (
+                  <Image 
+                    source={{ uri: userAvatar }} 
+                    style={styles.profileAvatar}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Ionicons name={tab.icon} size={20} color={colors.white} />
+                )}
               </View>
             ) : (
               <Ionicons
@@ -125,6 +138,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.orange[500],
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
+  },
+  profileAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
   },
 });
 
