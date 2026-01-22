@@ -319,8 +319,8 @@ const FaceRecognitionScreen = ({ navigation, route }) => {
 
       const regFaceData = {
         localId: LOCAL_ID,
-        userId: user.id.toString(),
-        cardSN: cardSN,
+        // userId: user.id.toString(),
+        // cardSN: cardSN,
         face1: face1String,
       };
 

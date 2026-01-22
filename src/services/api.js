@@ -117,7 +117,10 @@ class ApiClient {
 
   async request(method, url, { data, headers, signal } = {}) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.timeout);
+    // Use longer timeout for registration/login (30s) vs default (10s)
+    const isAuthEndpoint = url.includes('/auth/register') || url.includes('/auth/login');
+    const requestTimeout = isAuthEndpoint ? 30000 : this.timeout;
+    const timeout = setTimeout(() => controller.abort(), requestTimeout);
 
     try {
       const requestHeaders = { ...this.headers, ...headers };

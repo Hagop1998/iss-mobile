@@ -9,8 +9,6 @@ import {
   Alert,
   Image,
   TextInput,
-  Modal,
-  FlatList,
   Platform,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -36,16 +34,10 @@ const PersonalInformationScreen = ({ navigation }) => {
     lastName: '',
     email: '',
     phoneNumber: '',
-    address: '',
   });
   
   const [profileImage, setProfileImage] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [showAddressModal, setShowAddressModal] = useState(false);
-  const [addressSearchQuery, setAddressSearchQuery] = useState('');
-  const [addresses, setAddresses] = useState([]);
-  const [filteredAddresses, setFilteredAddresses] = useState([]);
-  const [isLoadingAddresses, setIsLoadingAddresses] = useState(false);
 
   useEffect(() => {
     console.log('🔄 PersonalInformationScreen mounted - fetching user data from /auth/status');
@@ -91,14 +83,11 @@ const PersonalInformationScreen = ({ navigation }) => {
       console.log('  • Last Name:', user.lastName || '(empty)');
       console.log('  • Email:', user.email || '(empty)');
       console.log('  • Phone:', user.phone || '(empty)');
-      console.log('  • Bio:', user.bio || '(empty)');
-      
       const newFormData = {
         firstName: user.firstName || '',
         lastName: user.lastName || '',
         email: user.email || '',
         phoneNumber: user.phone || '',
-        address: user.bio || '',
       };
       
       console.log('📋 Form data to be populated:', newFormData);
@@ -110,7 +99,6 @@ const PersonalInformationScreen = ({ navigation }) => {
       console.log('  • Last Name:', userProfile.lastName || '(empty)');
       console.log('  • Email:', userProfile.email || '(empty)');
       console.log('  • Phone:', userProfile.phoneNumber || '(empty)');
-      console.log('  • Address:', userProfile.address || '(empty)');
       
       setFormData({
         firstName: userProfile.firstName || '',
@@ -140,94 +128,11 @@ const PersonalInformationScreen = ({ navigation }) => {
     }
   }, [userProfile?.profileImage, user?.profileImage]);
 
-  const fetchAddresses = async () => {
-    try {
-      setIsLoadingAddresses(true);
-      console.log('📍 Fetching addresses from API...');
-      
-      const response = await apiService.address.getAddresses();
-      console.log('✅ Addresses fetched:', response);
-      
-      let addressData = [];
-      if (response?.results && Array.isArray(response.results)) {
-        addressData = response.results;
-      } else if (response?.data?.results && Array.isArray(response.data.results)) {
-        addressData = response.data.results;
-      } else if (Array.isArray(response?.data)) {
-        addressData = response.data;
-      } else if (Array.isArray(response)) {
-        addressData = response;
-      }
-      
-      setAddresses(addressData);
-      setFilteredAddresses(addressData);
-      
-      console.log(`✅ Loaded ${addressData.length} addresses`);
-    } catch (error) {
-      console.error('❌ Failed to fetch addresses:', error);
-      Alert.alert(
-        t('common.error'),
-        'Failed to load addresses. Please try again.'
-      );
-      setAddresses([]);
-      setFilteredAddresses([]);
-    } finally {
-      setIsLoadingAddresses(false);
-    }
-  };
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  useEffect(() => {
-    const addressList = Array.isArray(addresses) ? addresses : [];
-    
-    if (addressSearchQuery === '') {
-      setFilteredAddresses(addressList);
-    } else {
-      const filtered = addressList.filter(item => {
-        const searchLower = addressSearchQuery.toLowerCase();
-        const address = item.address || item.street || item.name || '';
-        const city = item.city || item.location || '';
-        const description = item.description || '';
-        
-        return (
-          address.toLowerCase().includes(searchLower) ||
-          city.toLowerCase().includes(searchLower) ||
-          description.toLowerCase().includes(searchLower)
-        );
-      });
-      setFilteredAddresses(filtered);
-    }
-  }, [addressSearchQuery, addresses]);
-
-  const handleAddressSelect = (selectedAddress) => {
-    const address = selectedAddress.address || selectedAddress.street || selectedAddress.name || '';
-    const city = selectedAddress.city || selectedAddress.location || '';
-    const fullAddress = city ? `${address}, ${city}` : address;
-    
-    console.log('📍 Address selected:', fullAddress);
-    setFormData(prev => ({ ...prev, address: fullAddress }));
-    setShowAddressModal(false);
-    setAddressSearchQuery('');
-  };
-
-  const handleOpenAddressModal = async () => {
-    if (isEditing) {
-      console.log('📍 Opening address selector modal');
-      setShowAddressModal(true);
-      
-      if (addresses.length === 0) {
-        await fetchAddresses();
-      }
-    }
-  };
-
-  const handleCloseAddressModal = () => {
-    setShowAddressModal(false);
-    setAddressSearchQuery('');
-  };
 
   const handleEdit = () => {
     console.log('✏️ Edit button pressed - enabling editing mode');
@@ -254,7 +159,7 @@ const PersonalInformationScreen = ({ navigation }) => {
         lastName: formData.lastName,
         email: formData.email,
         phone: formData.phoneNumber,
-        bio: formData.address, 
+        // Address is read-only, don't include it in update
       };
       
       console.log('Update payload:', updatePayload);
@@ -281,7 +186,6 @@ const PersonalInformationScreen = ({ navigation }) => {
         lastName: user.lastName || '',
         email: user.email || '',
         phoneNumber: user.phone || '',
-        address: user.bio || '',
       });
     } else if (userProfile) {
       setFormData({
@@ -289,7 +193,6 @@ const PersonalInformationScreen = ({ navigation }) => {
         lastName: userProfile.lastName || '',
         email: userProfile.email || '',
         phoneNumber: userProfile.phoneNumber || '',
-        address: userProfile.address || '',
       });
     }
     setIsEditing(false);
@@ -450,33 +353,6 @@ const PersonalInformationScreen = ({ navigation }) => {
             {renderFormField('lastName', t('profile.lastName'))}
             {renderFormField('email', t('profile.email'), 'email-address')}
             {renderFormField('phoneNumber', t('profile.phoneNumber'), 'phone-pad')}
-            
-            {/* Address Selector Field */}
-            <View style={styles.formField}>
-              <Text style={styles.formLabel}>
-                {t('profile.address')} {isEditing && <Text style={styles.editingIndicator}>(editing)</Text>}
-              </Text>
-              <TouchableOpacity
-                style={[
-                  styles.formInput,
-                  styles.addressSelector,
-                  !isEditing && styles.formInputDisabled,
-                  isEditing && styles.formInputEditing
-                ]}
-                onPress={handleOpenAddressModal}
-                disabled={!isEditing}
-              >
-                <Text style={[
-                  styles.addressText,
-                  !formData.address && styles.placeholderText
-                ]}>
-                  {formData.address || (isEditing ? 'Select address' : 'No address')}
-                </Text>
-                {isEditing && (
-                  <Ionicons name="chevron-down" size={20} color={colors.primary} />
-                )}
-              </TouchableOpacity>
-            </View>
           </View>
 
           {isEditing && (
@@ -498,82 +374,6 @@ const PersonalInformationScreen = ({ navigation }) => {
         </View>
       </ScrollView>
 
-      {/* Address Selection Modal */}
-      <Modal
-        visible={showAddressModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={handleCloseAddressModal}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Address</Text>
-              <TouchableOpacity onPress={handleCloseAddressModal}>
-                <Ionicons name="close" size={24} color={colors.text.primary} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Search Input */}
-            <View style={styles.searchContainer}>
-              <Ionicons name="search" size={20} color={colors.gray[400]} style={styles.searchIcon} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search address..."
-                value={addressSearchQuery}
-                onChangeText={setAddressSearchQuery}
-                autoFocus={true}
-              />
-              {addressSearchQuery !== '' && (
-                <TouchableOpacity onPress={() => setAddressSearchQuery('')}>
-                  <Ionicons name="close-circle" size={20} color={colors.gray[400]} />
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* Address List */}
-            {isLoadingAddresses ? (
-              <View style={styles.loadingContainer}>
-                <Text style={styles.loadingText}>Loading addresses...</Text>
-              </View>
-            ) : (
-              <FlatList
-                data={filteredAddresses}
-                keyExtractor={(item, index) => item.id?.toString() || index.toString()}
-                renderItem={({ item }) => {
-                  const address = item.address || item.street || item.name || 'Unknown Address';
-                  const city = item.city || item.location || '';
-                  
-                  return (
-                    <TouchableOpacity
-                      style={styles.addressItem}
-                      onPress={() => handleAddressSelect(item)}
-                    >
-                      <Ionicons name="location" size={20} color={colors.primary} />
-                      <View style={styles.addressItemText}>
-                        <Text style={styles.addressItemTitle}>{address}</Text>
-                        {city && <Text style={styles.addressItemSubtitle}>{city}</Text>}
-                      </View>
-                      <Ionicons name="chevron-forward" size={20} color={colors.gray[400]} />
-                    </TouchableOpacity>
-                  );
-                }}
-                ListEmptyComponent={() => (
-                  <View style={styles.emptyListContainer}>
-                    <Ionicons name="location-outline" size={48} color={colors.gray[300]} />
-                    <Text style={styles.emptyListText}>
-                      {addressSearchQuery ? 'No addresses found' : 'No addresses available'}
-                    </Text>
-                    <Text style={styles.emptyListSubtext}>
-                      {addressSearchQuery ? 'Try a different search term' : 'Addresses will appear here when available'}
-                    </Text>
-                  </View>
-                )}
-              />
-            )}
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 };
@@ -730,98 +530,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.white,
     fontWeight: '500',
-  },
-  addressSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  addressText: {
-    fontSize: 16,
-    color: colors.text.primary,
-    flex: 1,
-  },
-  placeholderText: {
-    color: colors.gray[400],
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: colors.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '80%',
-    paddingBottom: 20,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray[200],
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: colors.text.primary,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.gray[100],
-    borderRadius: 12,
-    margin: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: colors.text.primary,
-  },
-  addressItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray[100],
-  },
-  addressItemText: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  addressItemTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: colors.text.primary,
-    marginBottom: 4,
-  },
-  addressItemSubtitle: {
-    fontSize: 14,
-    color: colors.text.secondary,
-  },
-  emptyListContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-  },
-  emptyListText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: colors.text.secondary,
-    marginTop: 16,
-  },
-  emptyListSubtext: {
-    fontSize: 14,
-    color: colors.gray[400],
-    marginTop: 8,
   },
 });
 

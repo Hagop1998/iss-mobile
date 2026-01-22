@@ -50,6 +50,18 @@ const GenerateQRCodeScreen = ({ navigation, route }) => {
   const serviceFromRoute = route?.params?.service;
 
   const getUserAddress = () => {
+    const deviceAddress = user?.userSubscription?.device?.address;
+    if (deviceAddress) {
+      const address = deviceAddress.address || '';
+      const city = deviceAddress.city || '';
+      if (address && city) {
+        return `${address}, ${city}`;
+      } else if (address) {
+        return address;
+      } else if (city) {
+        return city;
+      }
+    }
     return user?.bio || user?.address || DEFAULT_VALUES.LOCATION;
   };
 
@@ -59,7 +71,7 @@ const GenerateQRCodeScreen = ({ navigation, route }) => {
     }
     const userAddress = getUserAddress();
     dispatch(setAddress(userAddress));
-  }, [serviceFromRoute, dispatch, user?.bio, user?.address]);
+  }, [serviceFromRoute, dispatch, user?.userSubscription?.device?.address]);
 
   useEffect(() => {
     if (selectedVisitorIdentity) {
@@ -370,13 +382,14 @@ const GenerateQRCodeScreen = ({ navigation, route }) => {
           </View>
         </View>
 
-        {/* Address Display (Read-only) */}
+        {/* Address Display (Read-only from Status Response) */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('qr.address')}</Text>
           <View style={styles.inputContainer}>
             <View style={styles.disabledInput}>
+              <Ionicons name="location" size={16} color={colors.gray[400]} style={styles.addressIcon} />
               <Text style={styles.disabledInputText}>
-                {address || getUserAddress()}
+                {getUserAddress() || 'No address available'}
               </Text>
             </View>
           </View>
@@ -522,11 +535,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: colors.gray[50],
     minHeight: 48,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  addressIcon: {
+    marginRight: 8,
   },
   disabledInputText: {
     color: colors.text.primary,
     fontSize: 16,
+    flex: 1,
   },
   pillContainer: {
     flexDirection: 'row',

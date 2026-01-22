@@ -51,6 +51,10 @@ const ProfileScreen = ({ navigation }) => {
       if (user?.member?.userSubscription?.subscription?.id) {
         count = 1; 
       } else if (user?.userSubscription?.subscription?.id) {
+        // User already has subscription data, count it
+        count = 1;
+      } else {
+        // Only fetch from API if we don't have subscription data
         try {
           const userSubscriptionsResponse = await apiService.subscriptions.getUserSubscriptions(user.id);
           let userSubs = [];
@@ -65,8 +69,13 @@ const ProfileScreen = ({ navigation }) => {
           
           count = userSubs.filter(sub => sub.status === 'active').length;
         } catch (error) {
-          if (user?.userSubscription?.subscription?.id) {
-            count = 1;
+          // Silently handle 404 - user just has no subscriptions
+          if (error?.status === 404 || error?.data?.statusCode === 404) {
+            console.log('ℹ️ User has no subscriptions (404)');
+            count = 0;
+          } else {
+            console.warn('⚠️ Failed to fetch user subscriptions:', error);
+            count = 0;
           }
         }
       }
