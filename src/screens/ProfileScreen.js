@@ -157,8 +157,8 @@ const ProfileScreen = ({ navigation }) => {
     );
   };
 
-  const SUPPORT_PHONE = '+37441051020';
-  const SUPPORT_PHONE_CLEAN = '37441051020'; 
+  const SUPPORT_PHONE = '+37441990666';
+  const SUPPORT_PHONE_CLEAN = '37441990666'; 
 
   const handleCall = async () => {
     const phoneUrl = `tel:${SUPPORT_PHONE}`;
