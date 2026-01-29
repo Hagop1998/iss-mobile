@@ -19,6 +19,7 @@ import ServiceBenefitsModal from '../components/ServiceBenefitsModal';
 import TabBar from '../components/TabBar';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { logoutUser, checkAuthStatus } from '../store/slices/authSlice';
+import { fetchAnnouncements } from '../store/slices/announcementSlice';
 import { apiService } from '../services/api';
 import { getServiceIcon, getServiceColor } from '../utils/serviceHelpers';
 import { homeScreenStyles as styles } from '../styles/HomeScreen.styles';
@@ -43,7 +44,7 @@ const HomeScreen = ({ navigation, route }) => {
 
   useFocusEffect(
     React.useCallback(() => {
-      const checkVerification = async () => {
+      const refresh = async () => {
         if (isAuthenticated && user?.token) {
           try {
             await dispatch(checkAuthStatus()).unwrap();
@@ -53,10 +54,12 @@ const HomeScreen = ({ navigation, route }) => {
               console.warn('⚠️ Could not refresh auth status:', errorMessage);
             }
           }
+          // Fetch announcements when Home is focused (e.g. after login) so user sees admin notifications
+          dispatch(fetchAnnouncements());
         }
       };
       
-      checkVerification();
+      refresh();
     }, [dispatch, isAuthenticated, user?.token])
   );
 
@@ -344,13 +347,34 @@ const HomeScreen = ({ navigation, route }) => {
   };
 
 
+  const announcements = useAppSelector((state) => state.announcement?.items ?? []);
+  const viewedAt = useAppSelector((state) => state.announcement?.viewedAt);
+  const announcementCount = announcements.length;
+  const showBadge = announcementCount > 0 && !viewedAt;
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{t('home.title')}</Text>
-        <TouchableOpacity onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={24} color={colors.text.primary} />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Announcements')}
+            style={styles.headerIconButton}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <Ionicons name="notifications-outline" size={24} color={colors.text.primary} />
+            {showBadge && (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationBadgeText}>
+                  {announcementCount > 99 ? '99+' : String(announcementCount)}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout} style={styles.headerIconButton}>
+            <Ionicons name="log-out-outline" size={24} color={colors.text.primary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView 

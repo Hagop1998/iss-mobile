@@ -107,6 +107,10 @@ export const endpoints = {
     update: '/devices',
     delete: '/devices',
   },
+
+  announcement: {
+    list: '/announcement',
+  },
 };
 
 class ApiClient {
@@ -468,6 +472,20 @@ export const apiService = {
 
   media: {
     upload: (formData) => apiClient.uploadFile(endpoints.media.upload, formData),
+  },
+
+  announcement: {
+    getList: (params = {}) => {
+      const query = new URLSearchParams();
+      if (params.page != null) query.append('page', params.page);
+      if (params.limit != null) query.append('limit', params.limit);
+      if (params.search) query.append('search', params.search);
+      if (params.entityType) query.append('entityType', params.entityType);
+      if (params.entityId != null) query.append('entityId', params.entityId);
+      if (params.isActive != null) query.append('isActive', params.isActive);
+      const queryString = query.toString();
+      return apiClient.get(`${endpoints.announcement.list}${queryString ? `?${queryString}` : ''}`);
+    },
   },
 };
 

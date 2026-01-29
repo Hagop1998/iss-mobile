@@ -26,6 +26,7 @@ import FaceRecognitionScreen from './src/screens/FaceRecognitionScreen';
 import SubscriptionsScreen from './src/screens/SubscriptionsScreen';
 import FamilyMembersScreen from './src/screens/FamilyMembersScreen';
 import PendingVerificationScreen from './src/screens/PendingVerificationScreen';
+import AnnouncementsScreen from './src/screens/AnnouncementsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -62,6 +63,7 @@ export default function App() {
           <Stack.Screen name="FaceRecognition" component={FaceRecognitionScreen} />
           <Stack.Screen name="Subscriptions" component={SubscriptionsScreen} />
           <Stack.Screen name="FamilyMembers" component={FamilyMembersScreen} />
+          <Stack.Screen name="Announcements" component={AnnouncementsScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </Provider>

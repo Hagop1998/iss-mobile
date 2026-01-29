@@ -1,9 +1,32 @@
-import { configureStore } from '@reduxjs/toolkit';
+import { configureStore, createListenerMiddleware } from '@reduxjs/toolkit';
 import authReducer from './slices/authSlice';
 import appReducer from './slices/appSlice';
 import profileReducer from './slices/profileSlice';
 import qrReducer from './slices/qrSlice';
+import announcementReducer from './slices/announcementSlice';
+import { fetchAnnouncements, clearAnnouncements } from './slices/announcementSlice';
+import { signInUser, checkAuthStatus, logoutUser } from './slices/authSlice';
 import { qrApi } from '../services/qrApi';
+
+// Fetch announcements when user logs in or auth status is refreshed; clear on logout
+const announcementListener = createListenerMiddleware();
+announcementListener.startListening({
+  predicate: (action) =>
+    action.type === signInUser.fulfilled.type || action.type === checkAuthStatus.fulfilled.type,
+  effect: async (action, listenerApi) => {
+    const state = listenerApi.getState();
+    const user = state.auth?.user;
+    if (user?.token) {
+      listenerApi.dispatch(fetchAnnouncements());
+    }
+  },
+});
+announcementListener.startListening({
+  predicate: (action) => action.type === logoutUser.fulfilled.type,
+  effect: (action, listenerApi) => {
+    listenerApi.dispatch(clearAnnouncements());
+  },
+});
 
 export const store = configureStore({
   reducer: {
@@ -11,6 +34,7 @@ export const store = configureStore({
     app: appReducer,
     profile: profileReducer,
     qr: qrReducer,
+    announcement: announcementReducer,
     [qrApi.reducerPath]: qrApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
@@ -18,6 +42,8 @@ export const store = configureStore({
       serializableCheck: {
         ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
       },
-    }).concat(qrApi.middleware),
+    })
+      .prepend(announcementListener.middleware)
+      .concat(qrApi.middleware),
 });
 
