@@ -32,7 +32,6 @@ const SubscriptionsScreen = ({ navigation }) => {
 
   const fetchSubscriptions = async () => {
     if (!user?.id) {
-      console.error('❌ No user ID available - User needs to sign in');
       Alert.alert(
         'Authentication Required',
         'Please sign in to view your subscriptions.',
@@ -53,11 +52,7 @@ const SubscriptionsScreen = ({ navigation }) => {
 
     try {
       setIsLoading(true);
-      console.log('📡 Fetching subscriptions for user:', user.id);
-      
       const response = await apiService.subscriptions.getUserSubscriptions(user.id);
-      console.log('✅ Subscriptions response:', response);
-      
       let subscriptionsData = [];
       
       if (Array.isArray(response)) {
@@ -81,17 +76,13 @@ const SubscriptionsScreen = ({ navigation }) => {
         };
         subscriptionsData = [subscription];
       }
-      
+
       setSubscriptions(subscriptionsData);
-      console.log(`✅ Loaded ${subscriptionsData.length} subscriptions`);
     } catch (error) {
       if (error?.status === 404 || error?.data?.statusCode === 404) {
-        console.log('ℹ️ User has no subscriptions (404) - treating as empty array');
         setSubscriptions([]);
         return;
       }
-      
-      console.error('❌ Failed to fetch subscriptions:', error);
       Alert.alert(
         t('common.error'),
         'Failed to load subscriptions. Please try again.'

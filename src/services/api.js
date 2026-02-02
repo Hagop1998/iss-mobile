@@ -73,6 +73,7 @@ export const endpoints = {
   
   media: {
     upload: '/medias/upload',
+    list: '/medias',
   },
   
   services: {
@@ -122,7 +123,6 @@ class ApiClient {
 
   async request(method, url, { data, headers, signal } = {}) {
     const controller = new AbortController();
-    // Use longer timeout for registration/login (30s) vs default (10s)
     const isAuthEndpoint = url.includes('/auth/register') || url.includes('/auth/login');
     const requestTimeout = isAuthEndpoint ? 30000 : this.timeout;
     const timeout = setTimeout(() => controller.abort(), requestTimeout);
@@ -132,43 +132,8 @@ class ApiClient {
       const isLoginApi = url.includes('/auth/login');
       const isSignUpApi = url.includes('/auth/register');
       
-      // CRITICAL: Remove Authorization header for login/signup - these endpoints should NOT have tokens
       if (isLoginApi || isSignUpApi) {
         delete requestHeaders.Authorization;
-      }
-      
-      if (isLoginApi) {
-        console.log('═══════════════════════════════════════════════════════════');
-        console.log('🌐 LOGIN API REQUEST (from ApiClient.request)');
-        console.log('═══════════════════════════════════════════════════════════');
-        console.log('📍 Method:', method);
-        console.log('📍 Full URL:', `${this.baseURL}${url}`);
-        console.log('📍 Endpoint:', url);
-        console.log('📤 Has Auth Token:', !!requestHeaders.Authorization);
-        console.log('📤 Auth Token Preview:', requestHeaders.Authorization 
-          ? requestHeaders.Authorization.substring(0, 30) + '...' 
-          : 'No token (expected for login)');
-        console.log('📤 Request Headers:', requestHeaders);
-        console.log('📤 Has Body:', !!data);
-        if (data) {
-          console.log('📤 Request Body:', JSON.stringify(data, null, 2));
-        }
-        console.log('═══════════════════════════════════════════════════════════');
-      } else {
-        console.log('🌐 API Request:', {
-          method,
-          url: `${this.baseURL}${url}`,
-          hasAuthToken: !!requestHeaders.Authorization,
-          authTokenPreview: requestHeaders.Authorization 
-            ? requestHeaders.Authorization.substring(0, 20) + '...' 
-            : 'No token',
-          headers: requestHeaders,
-          hasBody: !!data,
-        });
-        
-        if (data) {
-          console.log('Request body:', JSON.stringify(data, null, 2));
-        }
       }
       
       const res = await fetch(`${this.baseURL}${url}`, {
@@ -182,43 +147,7 @@ class ApiClient {
       const isJson = contentType.includes('application/json');
       const parsed = isJson ? await res.json() : await res.text();
 
-      if (isLoginApi) {
-        console.log('═══════════════════════════════════════════════════════════');
-        console.log('🔐 LOGIN API RESPONSE RECEIVED');
-        console.log('═══════════════════════════════════════════════════════════');
-        console.log('📍 URL:', `${this.baseURL}${url}`);
-        console.log('📊 Status:', res.status, res.statusText);
-        console.log('✅ Success:', res.ok);
-        console.log('📥 Response Headers:', Object.fromEntries(res.headers.entries()));
-        console.log('📦 Response Body:', JSON.stringify(parsed, null, 2));
-        if (parsed?.token || parsed?.data?.token) {
-          console.log('🔑 Token detected in response:', {
-            hasToken: !!parsed?.token,
-            hasDataToken: !!parsed?.data?.token,
-            tokenLength: parsed?.token?.length || parsed?.data?.token?.length,
-          });
-        }
-        console.log('═══════════════════════════════════════════════════════════');
-      } else {
-        console.log('📥 API Response:', {
-          url: `${this.baseURL}${url}`,
-          status: res.status,
-          statusText: res.statusText,
-          ok: res.ok,
-        });
-        console.log('Response body:', JSON.stringify(parsed, null, 2));
-      }
-
       if (!res.ok) {
-        if (isLoginApi) {
-          console.log('═══════════════════════════════════════════════════════════');
-        } else {
-          console.warn('⚠️ API error', { 
-            url: `${this.baseURL}${url}`, 
-            status: res.status, 
-            body: parsed 
-          });
-        }
         const error = new Error(parsed?.message || parsed?.error || 'Request failed');
         error.status = res.status;
         error.data = parsed;
@@ -257,13 +186,6 @@ class ApiClient {
       
       const headers = { ...requestHeaders, ...options.headers };
 
-      console.log('📤 File Upload Request:', {
-        method: 'POST',
-        url: `${this.baseURL}${url}`,
-        hasAuthToken: !!headers.Authorization,
-        formDataKeys: formData ? Object.keys(formData._parts || {}) : [],
-      });
-
       const res = await fetch(`${this.baseURL}${url}`, {
         method: 'POST',
         headers,
@@ -274,14 +196,6 @@ class ApiClient {
       const contentType = res.headers.get('content-type') || '';
       const isJson = contentType.includes('application/json');
       const parsed = isJson ? await res.json() : await res.text();
-
-      console.log('📥 File Upload Response:', {
-        url: `${this.baseURL}${url}`,
-        status: res.status,
-        statusText: res.statusText,
-        ok: res.ok,
-        response: parsed,
-      });
 
       if (!res.ok) {
         const error = new Error(parsed?.message || parsed?.error || 'Upload failed');
@@ -313,33 +227,12 @@ const externalCameraApiConfig = {
   headers: EXTERNAL_CAMERA_CONFIG.HEADERS,
 };
 
-console.log('📷 External Camera API Config:', {
-  baseURL: externalCameraApiConfig.baseURL,
-  timeout: externalCameraApiConfig.timeout,
-});
-
 const externalCameraClient = new ApiClient(externalCameraApiConfig);
 
 export const apiService = {
   auth: {
     signUp: (userData) => apiClient.post(endpoints.auth.signUp, userData),
-    signIn: (credentials) => {
-      console.log('═══════════════════════════════════════════════════════════');
-      console.log('🔐 LOGIN API CALL INITIATED');
-      console.log('═══════════════════════════════════════════════════════════');
-      console.log('📍 Endpoint:', endpoints.auth.signIn);
-      console.log('📍 Full URL:', `${apiConfig.baseURL}${endpoints.auth.signIn}`);
-      console.log('📤 Request Method: POST');
-      console.log('📤 Request Credentials:', {
-        email: credentials.email,
-        password: credentials.password ? '***' : 'NOT PROVIDED',
-        hasEmail: !!credentials.email,
-        hasPassword: !!credentials.password,
-      });
-      console.log('📤 Request Headers:', apiConfig.headers);
-      console.log('═══════════════════════════════════════════════════════════');
-      return apiClient.post(endpoints.auth.signIn, credentials);
-    },
+    signIn: (credentials) => apiClient.post(endpoints.auth.signIn, credentials),
     signOut: () => apiClient.post(endpoints.auth.signOut),
     getStatus: () => apiClient.get(endpoints.auth.status),
     refreshToken: () => apiClient.post(endpoints.auth.refreshToken),
@@ -352,14 +245,8 @@ export const apiService = {
   user: {
     getProfile: () => apiClient.get(endpoints.user.profile),
     updateProfile: (data) => apiClient.put(endpoints.user.updateProfile, data),
-    updateUserProfile: (data) => {
-      console.log('🔄 Updating user profile with data:', data);
-      return apiClient.request('PATCH', endpoints.user.updateUserProfile, { data });
-    },
-    updateUser: (userId, data) => {
-      console.log(`🔄 Updating user ${userId} with data:`, data);
-      return apiClient.request('PATCH', `${endpoints.user.updateUser}/${userId}`, { data });
-    },
+    updateUserProfile: (data) => apiClient.request('PATCH', endpoints.user.updateUserProfile, { data }),
+    updateUser: (userId, data) => apiClient.request('PATCH', `${endpoints.user.updateUser}/${userId}`, { data }),
     changePassword: (data) => apiClient.post(endpoints.user.changePassword, data),
     deleteAccount: () => apiClient.delete(endpoints.user.deleteAccount),
     getAllUsers: () => apiClient.get(endpoints.user.getAllUsers),
@@ -472,6 +359,16 @@ export const apiService = {
 
   media: {
     upload: (formData) => apiClient.uploadFile(endpoints.media.upload, formData),
+    getList: (params = {}) => {
+      const query = new URLSearchParams();
+      if (params.page != null) query.append('page', params.page);
+      if (params.limit != null) query.append('limit', params.limit);
+      if (params.mediaType) query.append('mediaType', params.mediaType);
+      if (params.entityType) query.append('entityType', params.entityType);
+      if (params.entityId != null) query.append('entityId', params.entityId);
+      const queryString = query.toString();
+      return apiClient.get(`${endpoints.media.list}${queryString ? `?${queryString}` : ''}`);
+    },
   },
 
   announcement: {
@@ -480,9 +377,6 @@ export const apiService = {
       if (params.page != null) query.append('page', params.page);
       if (params.limit != null) query.append('limit', params.limit);
       if (params.search) query.append('search', params.search);
-      if (params.entityType) query.append('entityType', params.entityType);
-      if (params.entityId != null) query.append('entityId', params.entityId);
-      if (params.isActive != null) query.append('isActive', params.isActive);
       const queryString = query.toString();
       return apiClient.get(`${endpoints.announcement.list}${queryString ? `?${queryString}` : ''}`);
     },

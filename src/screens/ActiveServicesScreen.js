@@ -34,12 +34,10 @@ const ActiveServicesScreen = ({ navigation }) => {
   const fetchSubscriptionsData = async () => {
     try {
       setIsLoading(true);
-      console.log('📡 Fetching all subscriptions and user subscriptions...');
       
       let allSubs = [];
       try {
         const allSubscriptionsResponse = await apiService.subscriptions.getSubscriptions();
-        console.log('✅ All subscriptions:', allSubscriptionsResponse);
         
         if (Array.isArray(allSubscriptionsResponse)) {
           allSubs = allSubscriptionsResponse;
@@ -55,7 +53,6 @@ const ActiveServicesScreen = ({ navigation }) => {
       let userSubs = [];
       try {
         const userSubscriptionsResponse = await apiService.subscriptions.getUserSubscriptions(user.id);
-        console.log('✅ User subscriptions:', userSubscriptionsResponse);
         
         if (Array.isArray(userSubscriptionsResponse)) {
           userSubs = userSubscriptionsResponse;
@@ -66,7 +63,6 @@ const ActiveServicesScreen = ({ navigation }) => {
         }
       } catch (error) {
         if (error?.status === 404 || error?.data?.statusCode === 404) {
-          console.log('ℹ️ User has no subscriptions (404) - treating as empty array');
           userSubs = [];
         } else {
           console.warn('⚠️ Failed to fetch user subscriptions:', error);
@@ -76,7 +72,6 @@ const ActiveServicesScreen = ({ navigation }) => {
       setSubscriptions(allSubs);
       setUserSubscriptions(userSubs);
       
-      console.log(`✅ Loaded ${allSubs.length} total subscriptions, ${userSubs.length} user subscriptions`);
     } catch (error) {
       console.error('❌ Failed to fetch subscriptions:', error);
       Alert.alert(

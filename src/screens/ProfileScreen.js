@@ -41,7 +41,6 @@ const ProfileScreen = ({ navigation }) => {
       dispatch(fetchPaymentMethods(user.id));
       fetchActiveServicesCount();
     } else {
-      console.warn('⚠️ No user ID available, skipping profile fetch');
       setActiveServicesCount(0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -51,11 +50,7 @@ const ProfileScreen = ({ navigation }) => {
   useFocusEffect(
     React.useCallback(() => {
       if (user?.token) {
-        console.log('🔄 ProfileScreen focused - refreshing auth status for avatar...');
-        // Only refresh auth status to get updated avatar, don't refetch profile data
-        dispatch(checkAuthStatus()).catch((error) => {
-          console.warn('⚠️ Failed to refresh auth status:', error);
-        });
+        dispatch(checkAuthStatus()).catch(() => {});
       }
     }, [dispatch, user?.token]) // Only depend on token, not user object
   );
@@ -85,12 +80,9 @@ const ProfileScreen = ({ navigation }) => {
           
           count = userSubs.filter(sub => sub.status === 'active').length;
         } catch (error) {
-          // Silently handle 404 - user just has no subscriptions
           if (error?.status === 404 || error?.data?.statusCode === 404) {
-            console.log('ℹ️ User has no subscriptions (404)');
             count = 0;
           } else {
-            console.warn('⚠️ Failed to fetch user subscriptions:', error);
             count = 0;
           }
         }
@@ -98,7 +90,6 @@ const ProfileScreen = ({ navigation }) => {
 
       setActiveServicesCount(count);
     } catch (error) {
-      console.error('Error fetching active services count:', error);
       setActiveServicesCount(0);
     }
   };
@@ -170,7 +161,6 @@ const ProfileScreen = ({ navigation }) => {
         Alert.alert(t('profile.support.error'), t('profile.support.cannotMakeCall'));
       }
     } catch (error) {
-      console.error('Error opening phone:', error);
       Alert.alert(t('profile.support.error'), t('profile.support.cannotMakeCall'));
     }
   };
@@ -187,7 +177,6 @@ const ProfileScreen = ({ navigation }) => {
         await Linking.openURL(whatsappWebUrl);
       }
     } catch (error) {
-      console.error('Error opening WhatsApp:', error);
       Alert.alert(
         t('profile.support.error'),
         t('profile.support.whatsappNotInstalled')
@@ -215,7 +204,6 @@ const ProfileScreen = ({ navigation }) => {
         }
       }
     } catch (error) {
-      console.error('Error opening Viber:', error);
       Alert.alert(
         t('profile.support.error'),
         t('profile.support.viberNotInstalled')
@@ -235,7 +223,6 @@ const ProfileScreen = ({ navigation }) => {
         await Linking.openURL(telegramWebUrl);
       }
     } catch (error) {
-      console.error('Error opening Telegram:', error);
       Alert.alert(
         t('profile.support.error'),
         t('profile.support.telegramNotInstalled')

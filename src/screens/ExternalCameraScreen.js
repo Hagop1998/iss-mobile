@@ -39,17 +39,11 @@ const ExternalCameraScreen = ({ navigation, route }) => {
       setIsLoading(true);
       setError(null);
 
-      console.log('🎥 Starting live preview...', {
-        channel: route?.params?.channel || 0,
-        streamType: route?.params?.streamType || 0,
-      });
 
       const response = await apiService.externalCamera.startLivePreview({
         channel: route?.params?.channel || 0,
         streamType: route?.params?.streamType || 0,
       });
-
-      console.log('📹 Live preview response:', response);
 
       if (response?.data?.streamUrl) {
         setStreamUrl(response.data.streamUrl);

@@ -10,6 +10,7 @@ import {
   TextInput,
   FlatList,
   Image,
+  Dimensions,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
@@ -20,7 +21,10 @@ import TabBar from '../components/TabBar';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { logoutUser, checkAuthStatus } from '../store/slices/authSlice';
 import { fetchAnnouncements } from '../store/slices/announcementSlice';
+import { fetchAds } from '../store/slices/mediaSlice';
 import { apiService } from '../services/api';
+import { API_CONFIG } from '../config/env';
+import { Video, ResizeMode } from 'expo-av';
 import { getServiceIcon, getServiceColor } from '../utils/serviceHelpers';
 import { homeScreenStyles as styles } from '../styles/HomeScreen.styles';
 
@@ -40,7 +44,8 @@ const HomeScreen = ({ navigation, route }) => {
   const [selectedTab, setSelectedTab] = useState('Home');
   const [showBenefitsModal, setShowBenefitsModal] = useState(false);
   const [selectedService, setSelectedService] = useState(null);
-  const [allSubscriptions, setAllSubscriptions] = useState([]); 
+  const [allSubscriptions, setAllSubscriptions] = useState([]);
+  const [adCarouselIndex, setAdCarouselIndex] = useState(0); 
 
   useFocusEffect(
     React.useCallback(() => {
@@ -49,13 +54,9 @@ const HomeScreen = ({ navigation, route }) => {
           try {
             await dispatch(checkAuthStatus()).unwrap();
           } catch (error) {
-            const errorMessage = error?.message || String(error);
-            if (!errorMessage.includes('Internal server error')) {
-              console.warn('⚠️ Could not refresh auth status:', errorMessage);
-            }
           }
-          // Fetch announcements when Home is focused (e.g. after login) so user sees admin notifications
           dispatch(fetchAnnouncements());
+          dispatch(fetchAds());
         }
       };
       
@@ -66,26 +67,11 @@ const HomeScreen = ({ navigation, route }) => {
   useEffect(() => {
     if (isAuthenticated && user) {
       const isVerified = (user.isVerified === true || user.isVerified === 'true') && (user.status === 1 || user.status === '1');
-      
-      console.log('🔍 HomeScreen - Verification Check:', {
-        userId: user.id,
-        email: user.email,
-        isVerified: user.isVerified,
-        status: user.status,
-        isVerifiedType: typeof user.isVerified,
-        verified: isVerified,
-      });
-      
-      
       if (!isVerified) {
-        console.log('❌ User is not verified, redirecting to PendingVerification');
-        // Immediately redirect if not verified
         navigation.reset({
           index: 0,
           routes: [{ name: 'PendingVerification' }],
         });
-      } else {
-        console.log('✅ User is verified, allowing access to Home');
       }
     }
   }, [isAuthenticated, user, user?.isVerified, user?.status, navigation]);
@@ -94,8 +80,7 @@ const HomeScreen = ({ navigation, route }) => {
   if (isAuthenticated && user) {
     const isVerified = (user.isVerified === true || user.isVerified === 'true') && user.status === 1;
     if (!isVerified) {
-      console.log('⏳ Blocking HomeScreen render - user not verified');
-      return null; // Return null while redirecting
+      return null;
     }
   }
 
@@ -111,22 +96,17 @@ const HomeScreen = ({ navigation, route }) => {
     }
   }, [user?.bio, user?.id]);
 
-  // Fetch owner's subscriptions - only if user has no subscription (user.userSubscription is null)
   useEffect(() => {
     const fetchOwnerSubscriptions = async () => {
       if (!user?.id) return;
       
-      // If user has subscription (admin selected "yes"), don't fetch owner subscriptions
       if (user?.userSubscription != null) {
         setAllSubscriptions([]);
         return;
       }
 
-      // If user has no subscription (admin selected "no"), fetch owner's subscriptions to show
       try {
         const allSubscriptionsResponse = await apiService.subscriptions.getSubscriptions();
-        console.log('✅ All subscriptions (owner):', allSubscriptionsResponse);
-        
         let allSubs = [];
         if (Array.isArray(allSubscriptionsResponse)) {
           allSubs = allSubscriptionsResponse;
@@ -137,9 +117,7 @@ const HomeScreen = ({ navigation, route }) => {
         }
         
         setAllSubscriptions(allSubs);
-        console.log(`✅ Loaded ${allSubs.length} owner subscriptions`);
       } catch (error) {
-        console.warn('⚠️ Failed to fetch all subscriptions:', error);
         setAllSubscriptions([]);
       }
     };
@@ -230,41 +208,17 @@ const HomeScreen = ({ navigation, route }) => {
     );
   };
 
-  // Check if user has subscription from /auth/status response
-  // Owner: user.userSubscription exists and they are the owner
-  // Accepted member: user.member.userSubscription exists (moved to user.userSubscription by authSlice) AND acceptedAt is not null
-  // IMPORTANT: Members should NOT have subscription access until they accept invitation (acceptedAt is not null)
   
   const currentUserId = user?.id;
   const familyMembers = user?.userSubscription?.familyMembers || [];
   const memberRecord = familyMembers.find(m => m.userId === currentUserId);
   const hasPendingInvitation = memberRecord && !memberRecord.acceptedAt;
   
-  // Check if user is the owner of the subscription
   const isOwner = user?.userSubscription?.userId === currentUserId;
   
-  // User has subscription only if:
-  // 1. They are the owner (isOwner is true), OR
-  // 2. They are a member who has accepted (memberRecord exists AND acceptedAt is not null)
-  // If they have pending invitation (acceptedAt is null), they should NOT have subscription
+
   const hasSubscription = isOwner || (memberRecord?.acceptedAt != null);
-  
-  console.log('🔍 Subscription Check:', {
-    currentUserId,
-    isOwner,
-    hasUserSubscription: !!user?.userSubscription,
-    hasMemberSubscription: !!user?.member?.userSubscription,
-    memberRecord: memberRecord ? {
-      id: memberRecord.id,
-      userId: memberRecord.userId,
-      acceptedAt: memberRecord.acceptedAt,
-      role: memberRecord.role
-    } : null,
-    hasPendingInvitation,
-    hasSubscription,
-  });
-  
-  
+
   const shouldDisableFeature = (title) => {
     // If user has no subscription, disable features
     if (!hasSubscription) {
@@ -315,9 +269,7 @@ const HomeScreen = ({ navigation, route }) => {
               source={iconSource} 
               style={[styles.featureIconImage, isDisabled && styles.featureIconImageDisabled]}
               resizeMode="contain"
-              onError={(error) => {
-                console.error('Image load error:', error.nativeEvent.error);
-              }}
+              onError={() => {}}
             />
           ) : (
             <Ionicons name="settings" size={24} color={isDisabled ? colors.gray[400] : colors.black} />
@@ -352,6 +304,99 @@ const HomeScreen = ({ navigation, route }) => {
   const announcementCount = announcements.length;
   const showBadge = announcementCount > 0 && !viewedAt;
 
+  const ads = useAppSelector((state) => state.media?.ads ?? []);
+
+  const getMediaUrl = (item) => {
+    if (!item) return null;
+    const raw = item.value ?? item.url ?? item.path ?? item.fileUrl ?? item.src;
+    if (raw && (raw.startsWith('http://') || raw.startsWith('https://'))) return raw;
+    const path = raw || (item.filename ? `/medias/${item.filename}` : null) || (item.id ? `/medias/${item.id}` : null);
+    return path ? `${API_CONFIG.BASE_URL.replace(/\/$/, '')}${path.startsWith('/') ? path : '/' + path}` : null;
+  };
+
+  const carouselWidth = Dimensions.get('window').width - 40; // content padding 20 each side
+
+  const renderAdCard = ({ item: ad, index }) => {
+    const mediaUrl = getMediaUrl(ad);
+    const isVideo = ad.mediaType === 'video' || (mediaUrl && /\.(mp4|webm|mov)$/i.test(mediaUrl));
+    const isActiveSlide = index === adCarouselIndex;
+    return (
+      <View style={[styles.adCard, { width: carouselWidth }]}>
+        {mediaUrl && isVideo ? (
+          <Video
+            source={{ uri: mediaUrl }}
+            style={styles.adVideo}
+            resizeMode={ResizeMode.COVER}
+            shouldPlay={isActiveSlide}
+            isLooping
+            isMuted
+            useNativeControls={false}
+            onError={() => {}}
+          />
+        ) : mediaUrl && !isVideo ? (
+          <Image
+            source={{ uri: mediaUrl }}
+            style={styles.adImage}
+            resizeMode="cover"
+            onError={() => {}}
+          />
+        ) : (
+          <View style={styles.adPlaceholder}>
+            <Ionicons name="videocam" size={40} color={colors.gray[400]} />
+            {isVideo && mediaUrl && (
+              <Text style={styles.adPlaceholderText} numberOfLines={1}>
+                {t('home.videoAd') || 'Video ad'}
+              </Text>
+            )}
+          </View>
+        )}
+        <View style={styles.adLabel}>
+          <Text style={styles.adLabelText}>{t('home.ad') || 'Advertisement'}</Text>
+        </View>
+      </View>
+    );
+  };
+
+  const onAdViewableItemsChanged = React.useRef(({ viewableItems }) => {
+    if (viewableItems?.length > 0 && viewableItems[0].index != null) {
+      setAdCarouselIndex(viewableItems[0].index);
+    }
+  }).current;
+  const viewabilityConfig = React.useRef({ viewAreaCoveragePercentThreshold: 50 }).current;
+
+  const renderAdSection = () => {
+    if (!ads || ads.length === 0) return null;
+    return (
+      <View style={styles.adSection}>
+        <FlatList
+          data={ads}
+          renderItem={renderAdCard}
+          keyExtractor={(item) => String(item.id ?? item.code ?? Math.random())}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          snapToInterval={carouselWidth + 12}
+          snapToAlignment="start"
+          decelerationRate="fast"
+          contentContainerStyle={styles.adCarouselContent}
+          ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
+          onViewableItemsChanged={onAdViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
+        />
+        {ads.length > 1 && (
+          <View style={styles.adPagination}>
+            {ads.map((_, i) => (
+              <View
+                key={i}
+                style={[styles.adPaginationDot, i === adCarouselIndex && styles.adPaginationDotActive]}
+              />
+            ))}
+          </View>
+        )}
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -381,6 +426,7 @@ const HomeScreen = ({ navigation, route }) => {
         style={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        {renderAdSection()}
         {renderLocationCard()}
         
         {!hasSubscription && allSubscriptions.length > 0 && (

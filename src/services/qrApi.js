@@ -48,30 +48,10 @@ const baseQuery = fetchBaseQuery({
   baseUrl: API_CONFIG.BASE_URL,
   prepareHeaders: (headers, { getState }) => {
     const token = getState().auth.user?.token;
-    console.log('🔐 QR API - Token check:', {
-      hasToken: !!token,
-      tokenLength: token?.length,
-      tokenPreview: token ? `${token.substring(0, 20)}...` : 'No token',
-      authState: {
-        hasUser: !!getState().auth.user,
-        isAuthenticated: getState().auth.isAuthenticated,
-      },
-    });
-    
     if (token) {
       headers.set('Authorization', `Bearer ${token}`);
-      console.log('✅ Authorization header set for QR API request');
-    } else {
-      console.error('❌ No token found in Redux state for QR API request');
     }
-    
     headers.set('Content-Type', 'application/json');
-    
-    console.log('📤 QR API Request Headers:', {
-      Authorization: headers.get('Authorization') ? 'Bearer ***' : 'Not set',
-      'Content-Type': headers.get('Content-Type'),
-    });
-    
     return headers;
   },
 });
@@ -88,10 +68,7 @@ export const qrApi = createApi({
         body: qrData,
         responseHandler: async (response) => {
           const contentType = response.headers.get('content-type');
-          console.log('📷 Response Content-Type:', contentType);
-          
           if (contentType && contentType.includes('image/')) {
-            console.log('✅ Detected image response, converting to base64...');
             try {
               const arrayBuffer = await response.arrayBuffer();
               const uint8Array = new Uint8Array(arrayBuffer);
@@ -114,8 +91,6 @@ export const qrApi = createApi({
               }
               
               const base64DataUrl = `data:${contentType};base64,${base64}`;
-              
-              console.log('✅ Image converted to base64, length:', base64DataUrl?.length);
               return {
                 code: response.status,
                 status: response.status,
@@ -124,12 +99,9 @@ export const qrApi = createApi({
                 imageType: contentType,
               };
             } catch (error) {
-              console.error('❌ Error converting image to base64:', error);
               throw error;
             }
           }
-          
-          console.log('📄 Handling as JSON response...');
           try {
             const text = await response.text();
             if (text) {
@@ -137,24 +109,13 @@ export const qrApi = createApi({
             }
             return { code: response.status, status: response.status };
           } catch (e) {
-            console.warn('⚠️ Could not parse as JSON, returning raw response');
             return { code: response.status, status: response.status, raw: true };
           }
         },
       }),
       transformResponse: (response, meta) => {
         const httpStatus = meta?.response?.status;
-        console.log('✅ QR Code API Response:', response);
-        console.log('Response HTTP status:', httpStatus);
-        console.log('Response type:', typeof response);
-        console.log('Has imageData:', !!response?.imageData);
-        
         if (response?.imageData) {
-          console.log('✅ QR Code image received:', {
-            imageType: response.imageType,
-            dataUrlLength: response.imageData?.length,
-            status: response.status || httpStatus,
-          });
           return {
             code: response.status || httpStatus || 200,
             status: response.status || httpStatus || 200,
@@ -175,12 +136,9 @@ export const qrApi = createApi({
           try {
             responseData = JSON.parse(responseData);
           } catch (e) {
-            console.warn('⚠️ Could not parse response as JSON:', e);
           }
         }
-        
         if (httpStatus === 201 || httpStatus === 200) {
-          console.log(`✅ HTTP ${httpStatus} - QR code generated successfully`);
           return {
             code: httpStatus,
             status: httpStatus,
@@ -192,7 +150,6 @@ export const qrApi = createApi({
         
         const responseCode = responseData?.code || httpStatus;
         if (responseCode && responseCode !== 200 && responseCode !== 201) {
-          console.error('❌ API returned error code:', responseCode, responseData?.msg || responseData?.message);
           throw {
             status: 'CUSTOM_ERROR',
             data: {
@@ -206,13 +163,7 @@ export const qrApi = createApi({
         return responseData || response;
       },
       transformErrorResponse: (response, meta) => {
-        console.error('❌ QR Code API Error:', response);
-        console.error('Error status:', meta?.response?.status);
-        console.error('Error type:', typeof response);
-        console.error('Error data:', response?.data);
-        
         if (meta?.response?.status === 201 && response?.error?.includes('Cannot read property')) {
-          console.warn('⚠️ Parsing error detected - API returned 201 but response parsing failed');
           return {
             status: 201,
             data: {

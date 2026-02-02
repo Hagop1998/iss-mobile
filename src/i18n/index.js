@@ -76,6 +76,9 @@ const resources = {
         noSubscription: 'No Subscription',
         contactOwnerMessage: 'You don\'t have an active subscription. Please contact the owner for an invitation to access these features.',
         ownerSubscriptions: 'Owner Subscriptions',
+        checkFamilyMembers: 'Check Family Members',
+        videoAd: 'Video ad',
+        ad: 'Advertisement',
       },
       profile: {
         personalInformation: 'Personal Information',
@@ -431,6 +434,9 @@ const resources = {
         noSubscription: 'Բաժանորդագրություն Չկա',
         contactOwnerMessage: 'Դուք չունեք ակտիվ բաժանորդագրություն: Խնդրում ենք կապ հաստատել տիրոջ հետ այս հնարավորություններին մուտք գործելու համար:',
         ownerSubscriptions: 'Տիրոջ Բաժանորդագրություններ',
+        checkFamilyMembers: 'Ստուգել Ընտանիքի Անդամներ',
+        videoAd: 'Տեսանյութ գովազդ',
+        ad: 'Գովազդ',
       },
       profile: {
         personalInformation: 'Անձնական Տվյալներ',
@@ -786,6 +792,9 @@ const resources = {
         noSubscription: 'Нет Подписки',
         contactOwnerMessage: 'У вас нет активной подписки. Пожалуйста, свяжитесь с владельцем для получения приглашения для доступа к этим функциям.',
         ownerSubscriptions: 'Подписки Владельца',
+        checkFamilyMembers: 'Проверить Членов Семьи',
+        videoAd: 'Видео реклама',
+        ad: 'Реклама',
       },
       profile: {
         personalInformation: 'Личная Информация',

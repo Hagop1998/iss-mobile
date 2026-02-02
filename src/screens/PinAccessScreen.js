@@ -39,35 +39,22 @@ const PinAccessScreen = ({ navigation, route }) => {
       
       const type = AuthCodeTypeEnum.TWENTY_FOUR_HOURS;
 
-      console.log('📤 Sending auth code request:', {
-        localId,
-        type,
-        service,
-      });
-
       const response = await apiService.middleware.getAuthCode({
         localId,
         type,
       });
 
-      console.log('✅ Auth code response:', JSON.stringify(response, null, 2));
-
       const code = response?.data?.data?.data?.code || 
                    response?.data?.data?.code || 
                    response?.data?.code ||
                    response?.code;
-      
-      console.log('🔍 Extracted code:', code);
-      
+
       if (code) {
         setAuthCode(String(code));
       } else {
-        console.error('❌ No code found in response structure');
         throw new Error('No code received from server');
       }
     } catch (error) {
-      console.error('❌ Error getting auth code:', error);
-      
       const errorMessage = 
         error?.response?.data?.message ||
         error?.response?.data?.error ||
@@ -89,7 +76,6 @@ const PinAccessScreen = ({ navigation, route }) => {
           t('pin.codeCopiedMessage') || 'Access code copied to clipboard'
         );
       } catch (error) {
-        console.error('Error copying to clipboard:', error);
         Alert.alert(
           t('common.error') || 'Error',
           t('pin.copyFailed') || 'Failed to copy code'

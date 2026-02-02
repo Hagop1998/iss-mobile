@@ -68,8 +68,6 @@ export const uploadProfileImage = createAsyncThunk(
   'profile/uploadProfileImage',
   async (imageData, { rejectWithValue, getState }) => {
     try {
-      console.log('📤 Uploading profile image...');
-      
       const state = getState();
       const userId = state.auth?.user?.id;
       
@@ -77,12 +75,9 @@ export const uploadProfileImage = createAsyncThunk(
         throw new Error('User ID is required for avatar upload');
       }
       
-      const targetSize = '640x480'; // As specified by user
+      const targetSize = '640x480'; 
       const [targetWidth, targetHeight] = targetSize.split('x').map(Number);
-      
-      console.log('🔄 Resizing profile image to', targetSize, 'on frontend...');
-      console.log('📐 Target dimensions:', targetWidth, 'x', targetHeight);
-      
+
       let resizedImage;
       try {
         resizedImage = await ImageManipulator.manipulateAsync(
@@ -95,9 +90,7 @@ export const uploadProfileImage = createAsyncThunk(
             format: ImageManipulator.SaveFormat.JPEG, 
           }
         );
-        console.log('✅ Profile image resized:', resizedImage.width, 'x', resizedImage.height);
       } catch (resizeError) {
-        console.error('❌ Error resizing profile image:', resizeError);
         throw new Error(`Failed to resize image: ${resizeError?.message || 'Unknown error'}`);
       }
 
@@ -115,15 +108,8 @@ export const uploadProfileImage = createAsyncThunk(
       formData.append('size', targetSize);
       formData.append('source', 'avatar');
       formData.append('entityId', userId.toString());
-      
-      console.log('📤 Uploading profile image with:', {
-        size: targetSize,
-        source: 'avatar',
-        entityId: userId,
-      });
-      
+
       const uploadResponse = await apiService.media.upload(formData);
-      console.log('📥 Profile image upload response:', uploadResponse);
       
       let imageUrl = '';
       if (typeof uploadResponse === 'string') {
@@ -149,17 +135,12 @@ export const uploadProfileImage = createAsyncThunk(
         throw new Error('Failed to get image URL from upload response');
       }
 
-      console.log('✅ Profile image uploaded successfully, URL:', imageUrl);
-      
       // After successful upload, update user profile with avatar URL
-      console.log('🔄 Updating user profile with avatar URL...');
       try {
-        const updateResponse = await apiService.user.updateUserProfile({
+        await apiService.user.updateUserProfile({
           avatar: imageUrl,
         });
-        console.log('✅ User profile updated with avatar:', updateResponse);
       } catch (updateError) {
-        console.error('❌ Failed to update profile with avatar URL:', updateError);
         // Don't throw here - upload was successful, just profile update failed
         // The avatar URL is still returned so it can be used
       }
@@ -169,7 +150,6 @@ export const uploadProfileImage = createAsyncThunk(
         updatedAt: new Date().toISOString(),
       };
     } catch (error) {
-      console.error('❌ Profile image upload error:', error);
       return rejectWithValue(error?.message || 'Failed to upload image');
     }
   }

@@ -65,7 +65,6 @@ const CameraScreen = ({ navigation }) => {
     if (isFocused && cameraPermission?.granted) {
       const timeout = setTimeout(() => {
         if (!isCameraReady) {
-          console.log('Camera ready timeout - forcing ready state');
           setIsCameraReady(true);
         }
       }, 2000);
@@ -94,7 +93,6 @@ const CameraScreen = ({ navigation }) => {
       }
 
       if (isRecording) {
-        console.log('Stopping photo capture...');
         if (recordingIntervalRef.current) {
           clearInterval(recordingIntervalRef.current);
           recordingIntervalRef.current = null;
@@ -127,7 +125,6 @@ const CameraScreen = ({ navigation }) => {
             setPhotoCount(count);
             try {
               await MediaLibrary.createAssetAsync(photo.uri);
-              console.log(`Photo ${count} saved`);
             } catch (saveError) {
               console.warn('Could not save photo:', saveError);
             }
@@ -177,7 +174,6 @@ const CameraScreen = ({ navigation }) => {
           style={StyleSheet.absoluteFill}
           facing="back"
           onCameraReady={() => {
-            console.log('Camera is ready');
             setIsCameraReady(true);
             setMountError(null);
           }}

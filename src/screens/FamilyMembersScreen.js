@@ -53,34 +53,11 @@ const FamilyMembersScreen = ({ navigation }) => {
   const isOwner = user?.userSubscription?.userId === user?.id;
 
   useEffect(() => {
-    console.log('🔍 FamilyMembersScreen - User state:', {
-      hasUser: !!user,
-      userId: user?.id,
-      hasUserSubscription: !!user?.userSubscription,
-      userSubscriptionId: user?.userSubscription?.id,
-    });
-    
-    // Wait for user to be loaded before fetching
     if (user?.id || user?.token) {
       fetchFamilyMembers();
       fetchPendingInvitations();
-    } else {
-      console.log('⏳ Waiting for user state to load before fetching invitations');
     }
   }, [user?.id, user?.token]);
-
-  // Log when pendingInvitations changes
-  useEffect(() => {
-    console.log('📬 Pending Invitations State:', {
-      count: pendingInvitations.length,
-      invitations: pendingInvitations.map(inv => ({
-        id: inv.id,
-        ownerId: inv.ownerId,
-        firstName: inv.firstName,
-        lastName: inv.lastName,
-      })),
-    });
-  }, [pendingInvitations]);
 
   useEffect(() => {
     if (debouncedEmail.trim().length > 0 && debouncedEmail.includes('@')) {
@@ -108,15 +85,11 @@ const FamilyMembersScreen = ({ navigation }) => {
     try {
       setIsLoading(true);
       const response = await dispatch(checkAuthStatus()).unwrap();
-      console.log('📋 fetchFamilyMembers response:', JSON.stringify(response, null, 2));
-      
+
       // Handle both cases: direct userSubscription (owner) or nested in member (non-owner)
       // Also check user state from Redux as fallback (already transformed by authSlice)
       const userSubscription = response?.userSubscription || response?.member?.userSubscription || user?.userSubscription;
       const familyMembersData = userSubscription?.familyMembers || [];
-
-      console.log('👥 Family members data:', JSON.stringify(familyMembersData, null, 2));
-      console.log(`📊 Found ${familyMembersData.length} family members`);
 
       const transformedMembers = familyMembersData.map(member => ({
         id: member.id,
@@ -132,10 +105,8 @@ const FamilyMembersScreen = ({ navigation }) => {
         status: member.acceptedAt ? 'active' : 'pending',
       }));
 
-      console.log('✅ Transformed members:', JSON.stringify(transformedMembers, null, 2));
       setFamilyMembers(transformedMembers);
     } catch (error) {
-      console.error('❌ Error fetching family members:', error);
       setFamilyMembers([]);
     } finally {
       setIsLoading(false);
@@ -157,13 +128,7 @@ const FamilyMembersScreen = ({ navigation }) => {
           const notAccepted = !member.acceptedAt;
           return isCurrentUser && notAccepted;
         });
-        
-        console.log('🔍 Owner checking for pending invitations:', {
-          currentUserId,
-          allFamilyMembers: allFamilyData.length,
-          pendingCount: pending.length,
-        });
-        
+
         const transformedInvitations = pending.map(invitation => {
           const subscriptionOwnerId = response?.userSubscription?.userId;
           const ownerMember = allFamilyData.find(member => member.role === 'owner');
@@ -186,8 +151,6 @@ const FamilyMembersScreen = ({ navigation }) => {
         setPendingInvitations(transformedInvitations);
       } else {
         // If user is NOT owner (member), call /users/invitation/me to get their pending invitations
-        // This is called when user explicitly navigates to FamilyMembersScreen
-        console.log('🔍 Member checking for pending invitations via /users/invitation/me');
         try {
           const invitationsResponse = await apiService.user.getMyInvitations();
           
@@ -203,9 +166,7 @@ const FamilyMembersScreen = ({ navigation }) => {
           } else if (invitationsResponse && typeof invitationsResponse === 'object') {
             invitationsData = [invitationsResponse];
           }
-          
-          console.log(`📊 Found ${invitationsData.length} pending invitations for member`);
-          
+
           const transformedInvitations = invitationsData.map(invitation => {
             return {
               id: invitation.id,
@@ -223,12 +184,10 @@ const FamilyMembersScreen = ({ navigation }) => {
           
           setPendingInvitations(transformedInvitations);
         } catch (error) {
-          console.error('❌ Error fetching invitations from /users/invitation/me:', error);
           setPendingInvitations([]);
         }
       }
     } catch (error) {
-      console.error('Error fetching pending invitations:', error);
       setPendingInvitations([]);
     } finally {
       setIsLoadingInvitations(false);
@@ -237,31 +196,13 @@ const FamilyMembersScreen = ({ navigation }) => {
 
   const handleAcceptInvitation = async (invitationId) => {
     try {
-      console.log('✅ User accepting invitation:', invitationId);
-      
-      // Accept the invitation
       await apiService.family.acceptInvitation(invitationId);
-      
-      // Call /users/invitation/me endpoint after accepting to refresh invitation status
-      console.log('📞 Calling /users/invitation/me after acceptance');
       await apiService.user.getMyInvitations();
-      
-      // Refresh auth status to get updated userSubscription
-      console.log('🔄 Refreshing auth status to get subscription...');
       const statusResponse = await dispatch(checkAuthStatus()).unwrap();
-      console.log('✅ Auth status refreshed:', JSON.stringify(statusResponse, null, 2));
-      
-      // Check if user now has subscription
-      const hasSubscription = statusResponse?.userSubscription || 
+      const hasSubscription = statusResponse?.userSubscription ||
                               statusResponse?.member?.userSubscription ||
                               user?.userSubscription;
-      
-      console.log('🔍 Subscription after acceptance:', {
-        hasSubscription: !!hasSubscription,
-        hasUserSubscription: !!statusResponse?.userSubscription,
-        hasMemberSubscription: !!statusResponse?.member?.userSubscription,
-      });
-      
+
       Alert.alert(
         t('family.success'),
         hasSubscription 
@@ -280,7 +221,6 @@ const FamilyMembersScreen = ({ navigation }) => {
         ]
       );
     } catch (error) {
-      console.error('Error accepting invitation:', error);
       const errorMessage = error?.data?.message || error?.message || t('family.acceptError');
       Alert.alert(t('family.error'), errorMessage);
     }
@@ -303,7 +243,6 @@ const FamilyMembersScreen = ({ navigation }) => {
         ]
       );
     } catch (error) {
-      console.error('Error ignoring invitation:', error);
       const errorMessage = error?.data?.message || error?.message || t('family.ignoreError');
       Alert.alert(t('family.error'), errorMessage);
     }
@@ -433,7 +372,6 @@ const FamilyMembersScreen = ({ navigation }) => {
         ]
       );
     } catch (error) {
-      console.error('Error inviting family member:', error);
       const errorMessage = error?.data?.message || error?.message || t('family.inviteError');
       Alert.alert(t('family.error'), errorMessage);
     } finally {

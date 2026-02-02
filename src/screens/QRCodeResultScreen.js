@@ -28,13 +28,7 @@ const QRCodeResultScreen = ({ navigation, route }) => {
   
   const qrData = route?.params?.qrData;
 
-  console.log('═══════════════════════════════════════════════════════════');
-  console.log('📄 QRCodeResultScreen Loaded');
-  console.log('QR Data received:', JSON.stringify(qrData, null, 2));
-  console.log('═══════════════════════════════════════════════════════════');
-
   if (!qrData) {
-    console.error('❌ No QR data received, going back');
     Alert.alert(
       t('common.error') || 'Error',
       'No QR code data received',
@@ -44,7 +38,6 @@ const QRCodeResultScreen = ({ navigation, route }) => {
   }
 
   if (qrData?.code && qrData.code !== 200 && qrData.code !== 201) {
-    console.error('❌ API returned error code:', qrData.code, qrData.msg);
     Alert.alert(
       t('common.error') || 'Error',
       qrData.msg || qrData.message || 'Failed to generate QR code',
@@ -61,17 +54,12 @@ const QRCodeResultScreen = ({ navigation, route }) => {
                        qrData?.data?.qrUrl ||
                        qrData?.qrUrl;
 
-  if (!hasQRCodeData) {
-    console.warn('⚠️ No QR code data in response, showing placeholder');
-  }
-
   const getServiceInfo = () => {
     try {
       const serviceId = qrData?.service || 'barrier'; 
       const service = services.find(s => s.id === serviceId);
     return service || { name: t('qr.service'), icon: 'settings' };
     } catch (error) {
-      console.error('Error getting service info:', error);
       return { name: t('qr.service'), icon: 'settings' };
     }
   };
@@ -85,7 +73,6 @@ const QRCodeResultScreen = ({ navigation, route }) => {
       const identity = visitorIdentities.find(i => i.id === identityId);
     return identity || { name: t('qr.visitor'), icon: 'person' };
     } catch (error) {
-      console.error('Error getting visitor identity info:', error);
       return { name: t('qr.visitor'), icon: 'person' };
     }
   };
@@ -112,7 +99,6 @@ const QRCodeResultScreen = ({ navigation, route }) => {
       return { name: `${hours} hours`, value: hours };
       }
     } catch (error) {
-      console.error('Error getting time period info:', error);
       return { name: 'N/A', value: 0 };
     }
   };
@@ -141,7 +127,6 @@ const QRCodeResultScreen = ({ navigation, route }) => {
         }
       }
     } catch (error) {
-      console.error('Error formatting expiry time:', error);
       return t('qr.timePeriod');
     }
   };
@@ -149,8 +134,6 @@ const QRCodeResultScreen = ({ navigation, route }) => {
   const handleShare = async () => {
     try {
       if (qrData?.imageData) {
-        console.log('📤 Sharing QR code image...');
-        
         const fileName = `qr_code_${Date.now()}.jpg`;
         const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
         
@@ -158,21 +141,16 @@ const QRCodeResultScreen = ({ navigation, route }) => {
         if (base64Data.includes(',')) {
           base64Data = base64Data.split(',')[1];
         }
-        
-        console.log('💾 Writing image to file:', fileUri);
         try {
           await FileSystem.writeAsStringAsync(fileUri, base64Data, {
             encoding: FileSystem.EncodingBase64 || 'base64',
           });
         } catch (encodingError) {
-          console.warn('⚠️ First encoding attempt failed, trying string:', encodingError);
           await FileSystem.writeAsStringAsync(fileUri, base64Data, {
             encoding: 'base64',
           });
         }
-        
-        console.log('✅ QR code image saved to:', fileUri);
-        
+
         const isAvailable = await Sharing.isAvailableAsync();
         if (!isAvailable) {
           Alert.alert(
@@ -186,16 +164,12 @@ const QRCodeResultScreen = ({ navigation, route }) => {
           mimeType: 'image/jpeg',
           dialogTitle: t('qr.share') || 'Share QR Code',
         });
-        
-        console.log('✅ QR code image shared successfully');
-        
+
         try {
           await shareQRCode(qrData).unwrap();
         } catch (trackingError) {
-          console.warn('⚠️ Share tracking failed:', trackingError);
         }
       } else {
-        console.log('📤 Sharing QR code as text (no image available)...');
         const shareContent = {
           message: t('qr.shareMessage', {
             service: getServiceInfo().name,
@@ -207,15 +181,13 @@ const QRCodeResultScreen = ({ navigation, route }) => {
         };
 
         await Share.share(shareContent);
-        
+
         try {
           await shareQRCode(qrData).unwrap();
         } catch (trackingError) {
-          console.warn('⚠️ Share tracking failed:', trackingError);
         }
       }
     } catch (error) {
-      console.error('❌ Error sharing QR code:', error);
       Alert.alert(
         t('common.error') || 'Error',
         t('qr.shareFailed') || 'Failed to share QR code'
@@ -236,7 +208,6 @@ const QRCodeResultScreen = ({ navigation, route }) => {
   const renderQRCode = () => {
     try {
       if (qrData?.imageData) {
-        console.log('✅ Rendering QR code image from backend');
         return (
           <View style={styles.qrCodeContainer}>
             <Image
@@ -300,7 +271,6 @@ const QRCodeResultScreen = ({ navigation, route }) => {
         </View>
       );
     } catch (error) {
-      console.error('Error rendering QR code:', error);
       return (
         <View style={styles.qrCodeContainer}>
           <View style={styles.errorContainer}>
@@ -346,7 +316,6 @@ const QRCodeResultScreen = ({ navigation, route }) => {
         </View>
       );
     } catch (error) {
-      console.error('Error rendering QR details:', error);
       return <Text>Loading details...</Text>;
     }
   };

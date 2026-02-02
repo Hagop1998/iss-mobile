@@ -60,7 +60,6 @@ export const getLocalIdByService = (serviceType, user, fallbackLocalId = '213613
     );
     
     if (device && device.localId) {
-      console.log(`✅ Found localId from user.devices for ${serviceType}: ${device.localId}`);
       return device.localId;
     }
   }
@@ -70,14 +69,12 @@ export const getLocalIdByService = (serviceType, user, fallbackLocalId = '213613
       if (!user.device.deviceType || 
           user.device.deviceType === deviceType || 
           user.device.type === deviceType) {
-        console.log(`✅ Found localId from user.device for ${serviceType}: ${user.device.localId}`);
         return user.device.localId;
       }
     }
   }
 
   if (user.localId) {
-    console.log(`✅ Found localId from user.localId for ${serviceType}: ${user.localId}`);
     return user.localId;
   }
 
@@ -90,7 +87,6 @@ export const getLocalIdByService = (serviceType, user, fallbackLocalId = '213613
   const fieldsToCheck = serviceLocalIdFields[serviceType] || [];
   for (const field of fieldsToCheck) {
     if (user[field]) {
-      console.log(`✅ Found localId from user.${field} for ${serviceType}: ${user[field]}`);
       return user[field];
     }
   }
@@ -98,7 +94,6 @@ export const getLocalIdByService = (serviceType, user, fallbackLocalId = '213613
   if (user.device) {
     for (const field of fieldsToCheck) {
       if (user.device[field]) {
-        console.log(`✅ Found localId from user.device.${field} for ${serviceType}: ${user.device[field]}`);
         return user.device[field];
       }
     }

@@ -40,66 +40,26 @@ const PersonalInformationScreen = ({ navigation }) => {
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
-    console.log('🔄 PersonalInformationScreen mounted - fetching user data from /auth/status');
-    console.log('Current user state:', { 
-      hasUser: !!user, 
-      userId: user?.id, 
-      hasToken: !!user?.token,
-      tokenLength: user?.token?.length 
-    });
-    
     if (user?.token) {
-      console.log('✅ Setting token in API client...');
       apiClient.setAuthToken(user.token);
-      console.log('Token set successfully, now calling /auth/status');
-      
-      dispatch(checkAuthStatus())
-        .unwrap()
-        .then((response) => {
-          console.log('✅ User data fetched from /auth/status:', response);
-        })
-        .catch((error) => {
-          console.error('❌ Failed to fetch user data:', error);
-        });
-      
+      dispatch(checkAuthStatus()).unwrap().catch(() => {});
       if (user?.id) {
         dispatch(fetchUserProfile(user.id));
       }
     } else {
-      console.error('❌ No token found in user state! Cannot fetch data.');
-      console.error('User object:', JSON.stringify(user, null, 2));
       Alert.alert('Error', 'Session expired. Please login again.');
     }
   }, [dispatch, user?.id, user?.token]);
 
   useEffect(() => {
-    console.log('═══════════════════════════════════════════════════════════');
-    console.log('📝 Populating Form Fields with User Data');
-    console.log('═══════════════════════════════════════════════════════════');
-    
     if (user) {
-      console.log('✅ Using data from auth state (from /auth/status):');
-      console.log('  • First Name:', user.firstName || '(empty)');
-      console.log('  • Last Name:', user.lastName || '(empty)');
-      console.log('  • Email:', user.email || '(empty)');
-      console.log('  • Phone:', user.phone || '(empty)');
-      const newFormData = {
+      setFormData({
         firstName: user.firstName || '',
         lastName: user.lastName || '',
         email: user.email || '',
         phoneNumber: user.phone || '',
-      };
-      
-      console.log('📋 Form data to be populated:', newFormData);
-      setFormData(newFormData);
-      console.log('✅ Form fields populated successfully!');
+      });
     } else if (userProfile) {
-      console.log('⚠️ Using fallback data from profile state:');
-      console.log('  • First Name:', userProfile.firstName || '(empty)');
-      console.log('  • Last Name:', userProfile.lastName || '(empty)');
-      console.log('  • Email:', userProfile.email || '(empty)');
-      console.log('  • Phone:', userProfile.phoneNumber || '(empty)');
-      
       setFormData({
         firstName: userProfile.firstName || '',
         lastName: userProfile.lastName || '',
@@ -107,10 +67,7 @@ const PersonalInformationScreen = ({ navigation }) => {
         phoneNumber: userProfile.phoneNumber || '',
         address: userProfile.address || '',
       });
-    } else {
-      console.log('⚠️ No user data available yet');
     }
-    console.log('═══════════════════════════════════════════════════════════');
   }, [user, userProfile]);
 
   useEffect(() => {
@@ -135,15 +92,10 @@ const PersonalInformationScreen = ({ navigation }) => {
 
 
   const handleEdit = () => {
-    console.log('✏️ Edit button pressed - enabling editing mode');
     setIsEditing(true);
   };
 
   const handleSave = async () => {
-    console.log('💾 Saving user profile...');
-    console.log('User ID:', user?.id);
-    console.log('Form data to save:', formData);
-    
     // Validate email if it's being edited
     if (formData.email && !validateEmail(formData.email)) {
       Alert.alert(
@@ -161,9 +113,7 @@ const PersonalInformationScreen = ({ navigation }) => {
         phone: formData.phoneNumber,
         // Address is read-only, don't include it in update
       };
-      
-      console.log('Update payload:', updatePayload);
-      
+
       await dispatch(updateUserData({ 
         userId: user.id, 
         userData: updatePayload 
@@ -171,15 +121,12 @@ const PersonalInformationScreen = ({ navigation }) => {
       
       setIsEditing(false);
       Alert.alert(t('common.success'), t('profile.profileUpdated'));
-      console.log('✅ Profile updated successfully!');
     } catch (error) {
-      console.error('❌ Failed to update profile:', error);
       Alert.alert(t('common.error'), error || t('profile.updateFailed'));
     }
   };
 
   const handleCancel = () => {
-    console.log('❌ Cancel pressed - restoring original data');
     if (user) {
       setFormData({
         firstName: user.firstName || '',
@@ -254,8 +201,6 @@ const PersonalInformationScreen = ({ navigation }) => {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const selectedImage = result.assets[0];
-        console.log('📸 Image selected:', selectedImage.uri);
-        
         // Show temporary preview
         setProfileImage(selectedImage.uri);
         
@@ -275,19 +220,14 @@ const PersonalInformationScreen = ({ navigation }) => {
           await dispatch(checkAuthStatus()).unwrap();
           
           Alert.alert(t('common.success'), t('profile.imageUpdated'));
-          console.log('✅ Profile image uploaded and profile updated successfully');
         } catch (uploadError) {
-          console.error('❌ Failed to upload image:', uploadError);
           // Revert to original image
           const originalImage = userProfile?.profileImage || user?.profileImage || user?.avatar;
           setProfileImage(originalImage);
           Alert.alert(t('common.error'), uploadError || t('profile.imageUpdateFailed'));
         }
-      } else {
-        console.log('📸 Image selection cancelled');
       }
     } catch (error) {
-      console.error('❌ Image selection error:', error);
       Alert.alert(t('common.error'), 'Failed to select image. Please try again.');
     }
   };

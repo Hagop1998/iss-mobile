@@ -93,7 +93,6 @@ const GenerateQRCodeScreen = ({ navigation, route }) => {
 
   useEffect(() => {
     if (error) {
-      console.log('QR Generation Error:', error);
       const errorMessage = error.data?.error || error.message || 'Failed to generate QR code';
       Alert.alert(t('common.error'), errorMessage);
     }
@@ -113,16 +112,7 @@ const GenerateQRCodeScreen = ({ navigation, route }) => {
   };
 
   const handleGenerate = async () => {
-  
-    console.log('Current State:', {
-      selectedService,
-      selectedVisitorIdentity,
-      selectedTimePeriod,
-      address,
-    });
-    
     if (!selectedService) {
-      console.error('❌ No service selected');
       Alert.alert(
         t('common.error') || 'Error',
         'Please select a service first',
@@ -132,7 +122,6 @@ const GenerateQRCodeScreen = ({ navigation, route }) => {
     }
     
     if (!isFormValid()) {
-      console.log('❌ Form validation failed');
       Alert.alert(t('common.error'), 'Please fill all required fields');
       return;
     }
@@ -164,45 +153,17 @@ const GenerateQRCodeScreen = ({ navigation, route }) => {
         localIds: localIds, 
       };
       
-      if (selectedService === 'smart_intercom') {
-      } else if (selectedService === 'elevator') {
-      } else if (selectedService === 'barrier') {
-      }
-      
-      console.log('═══════════════════════════════════════════════════════════');
-      console.log('📤 QR CODE GENERATION PAYLOAD');
-      console.log('═══════════════════════════════════════════════════════════');
-      console.log('🔹 Full Payload Object:', JSON.stringify(qrData, null, 2));
-      console.log('🔹 qrType:', qrType, `(${qrType === QrCodeTypeEnum.VALID_PERIOD ? 'VALID_PERIOD' : 'VALID_ONCE'})`);
-      console.log('🔹 qrDate:', qrDate, 'hours');
-      console.log('🔹 localIds:', localIds, `(type: ${typeof localIds})`);
-      console.log('🔹 Service:', selectedService);
-      console.log('🔹 Payload Keys:', Object.keys(qrData));
-      console.log('🔹 Payload Size:', JSON.stringify(qrData).length, 'bytes');
-      console.log('═══════════════════════════════════════════════════════════');
-      
-      console.log('📤 Transformed QR Data:', JSON.stringify(qrData, null, 2));
-      console.log('📤 Service:', selectedService);
-      console.log('📤 Visitor Identity:', selectedVisitorIdentity);
-      console.log('📤 QR Type (enum):', qrType, qrType === QrCodeTypeEnum.VALID_PERIOD ? 'VALID_PERIOD' : 'VALID_ONCE');
-      console.log('📤 QR Date (enum):', qrDate, 'hours');
-      console.log('📤 Time period (hours):', timePeriodHours);
-      console.log('📤 Local IDs:', localIds);
-            
       let result;
       try {
         result = await generateQRCode(qrData).unwrap();
       } catch (unwrapError) {
         if (unwrapError?.status === 201 && unwrapError?.data?.success === true) {
-          console.log('✅ QR code was generated successfully (201), treating as success');
-          result = unwrapError.data; 
+          result = unwrapError.data;
         } else {
           throw unwrapError;
         }
       }
-      
-      console.log('📥 API Response:', JSON.stringify(result, null, 2));
-      
+
       if (result?.code && result.code !== 200 && result.code !== 201) {
         throw {
           status: result.code,
@@ -214,17 +175,6 @@ const GenerateQRCodeScreen = ({ navigation, route }) => {
         };
       }
       
-      if (result?.code === 201 || result?.status === 201 || result?.success === true) {
-        console.log('✅ QR code generated successfully (201)');
-      }
-      
-      if (!result?.data && !result?.qrCode && !result?.qrData && !result?.code) {
-        console.warn('⚠️ Response does not contain QR code data');
-      }
-      
-      console.log('✅ QR Generated successfully!');
-      console.log('📥 QR Code Data:', result?.data || result?.qrCode || result);
-   
       try {
         navigation.navigate('QRCodeResult', { 
           qrData: {
@@ -236,7 +186,6 @@ const GenerateQRCodeScreen = ({ navigation, route }) => {
           }
         });
       } catch (navError) {
-        console.error('❌ Navigation error:', navError);
         Alert.alert(
           t('common.error') || 'Error',
           'Failed to navigate to QR code result. Please try again.',
@@ -246,7 +195,6 @@ const GenerateQRCodeScreen = ({ navigation, route }) => {
       
     } catch (error) {
       if (error?.status === 201 && error?.data?.success === true) {
-        console.log('✅ QR code was generated successfully (201), navigating to result screen');
         try {
           navigation.navigate('QRCodeResult', {
             qrData: {
@@ -263,20 +211,15 @@ const GenerateQRCodeScreen = ({ navigation, route }) => {
             selectedTimePeriod: selectedTimePeriod,
           });
         } catch (navError) {
-          console.error('Error navigating to QR result:', navError);
           Alert.alert(
             t('common.error') || 'Error',
             'Failed to navigate to QR code result. Please try again.',
             [{ text: t('common.ok') || 'OK' }]
           );
         }
-        return; 
+        return;
       }
-      
-      console.error('❌ Error generating QR code:', error);
-      console.error('Error object:', JSON.stringify(error, null, 2));
-      console.error('Error stack:', error?.stack);
-      
+
       let errorMessage = 'Failed to generate QR code. Please try again.';
       
       try {
@@ -299,7 +242,6 @@ const GenerateQRCodeScreen = ({ navigation, route }) => {
           errorMessage = typeof error.data.msg === 'string' ? error.data.msg : 'An error occurred';
         }
       } catch (parseError) {
-        console.error('Error parsing error message:', parseError);
         errorMessage = 'An unexpected error occurred. Please try again.';
       }
       
@@ -314,8 +256,6 @@ const GenerateQRCodeScreen = ({ navigation, route }) => {
           [{ text: t('common.ok') || 'OK', style: 'default' }]
         );
       } catch (alertError) {
-        console.error('❌ Error showing alert:', alertError);
-        console.error('Error message that could not be displayed:', errorMessage);
       }
     }
   };

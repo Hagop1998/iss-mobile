@@ -27,13 +27,8 @@ function parseAnnouncementList(res) {
 }
 
 /**
- * Fetches announcements for the current user on login.
- * Calls GET /announcement with:
- * - entityType: general (for everyone)
- * - entityType: user, entityId: userId
- * - entityType: address, entityId: addressId (if user has subscription with address)
- * - entityType: device, entityId: deviceId (if user has subscription with device)
- * Merges all results and deduplicates by id.
+ * Fetches announcements for the current user.
+ * Backend GET /announcement only allows page and limit; it returns announcements relevant to the user.
  */
 export const fetchAnnouncements = createAsyncThunk(
   'announcement/fetchAnnouncements',
@@ -42,88 +37,11 @@ export const fetchAnnouncements = createAsyncThunk(
       const state = getState();
       const user = state.auth?.user;
       if (!user?.token) {
-        console.log('📢 fetchAnnouncements: No token, skipping');
         return { items: [] };
       }
 
-      const userId = user?.id;
-      const addressId = user?.userSubscription?.device?.address?.id ?? user?.userSubscription?.address?.id;
-      const deviceId = user?.userSubscription?.device?.id;
-
-      const defaultParams = { page: 1, limit: 50, isActive: true };
-      const requests = [];
-
-      // 1. General announcements - admin "general" uses no entity ID (Entity IDs: "-"), so omit entityId first
-      requests.push(
-        (async () => {
-          try {
-            let res = await apiService.announcement.getList({ ...defaultParams, entityType: 'general' });
-            let list = parseAnnouncementList(res);
-            if (list.length === 0) {
-              res = await apiService.announcement.getList({ ...defaultParams, entityType: 'general', entityId: 0 });
-              list = parseAnnouncementList(res);
-            }
-            console.log('📢 Announcements (general):', list?.length ?? 0, 'items', 'response keys:', res ? Object.keys(res) : []);
-            if (list.length === 0 && res && typeof res === 'object') {
-              console.log('📢 General response sample:', JSON.stringify(res).slice(0, 500));
-            }
-            return { source: 'general', data: list };
-          } catch (err) {
-            console.warn('📢 Announcements (general) request failed:', err?.message);
-            return { source: 'general', data: [] };
-          }
-        })()
-      );
-
-      // 2. User-specific announcements
-      if (userId) {
-        requests.push(
-          apiService.announcement.getList({ ...defaultParams, entityType: 'user', entityId: userId })
-            .then((res) => {
-              const list = parseAnnouncementList(res);
-              console.log('📢 Announcements (user):', list?.length ?? 0, 'items');
-              return { source: 'user', data: list };
-            })
-            .catch((err) => {
-              console.warn('📢 Announcements (user) request failed:', err?.message);
-              return { source: 'user', data: [] };
-            })
-        );
-      }
-
-      // 3. Address-specific announcements (if user has address from subscription)
-      if (addressId) {
-        requests.push(
-          apiService.announcement.getList({ ...defaultParams, entityType: 'address', entityId: addressId })
-            .then((res) => ({ source: 'address', data: parseAnnouncementList(res) }))
-            .catch(() => ({ source: 'address', data: [] }))
-        );
-      }
-
-      // 4. Device-specific announcements (if user has device from subscription)
-      if (deviceId) {
-        requests.push(
-          apiService.announcement.getList({ ...defaultParams, entityType: 'device', entityId: deviceId })
-            .then((res) => ({ source: 'device', data: parseAnnouncementList(res) }))
-            .catch(() => ({ source: 'device', data: [] }))
-        );
-      }
-
-      const results = await Promise.all(requests);
-      const seen = new Set();
-      const items = [];
-      for (const r of results) {
-        const list = Array.isArray(r?.data) ? r.data : [];
-        for (const item of list) {
-          const id = item?.id ?? item?.title ?? JSON.stringify(item);
-          if (!seen.has(id)) {
-            seen.add(id);
-            items.push(item);
-          }
-        }
-      }
-
-      console.log('📢 fetchAnnouncements: total merged', items.length, 'announcements');
+      const res = await apiService.announcement.getList({ page: 1, limit: 50 });
+      const items = parseAnnouncementList(res);
       return { items };
     } catch (error) {
       console.error('❌ fetchAnnouncements error:', error);

@@ -36,21 +36,9 @@ const SignInScreen = ({ navigation }) => {
   useEffect(() => {
     if (isAuthenticated && user) {
       const isVerified = (user.isVerified === true || user.isVerified === 'true') && (user.status === 1 || user.status === '1');
-      
-      console.log('🔍 SignInScreen - Verification Check:', {
-        userId: user.id,
-        email: user.email,
-        isVerified: user.isVerified,
-        status: user.status,
-        isVerifiedType: typeof user.isVerified,
-        verified: isVerified,
-      });
-      
       if (isVerified) {
-        console.log('✅ User is verified, navigating to Home');
         navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
       } else {
-        console.log('❌ User is not verified, navigating to PendingVerification');
         navigation.reset({ index: 0, routes: [{ name: 'PendingVerification' }] });
       }
     }
@@ -120,27 +108,19 @@ const SignInScreen = ({ navigation }) => {
     const passwordValid = validateField('password', formData.password);
 
     if (!emailValid || !passwordValid) {
-      console.log('❌ Validation failed:', { emailValid, passwordValid });
       return;
     }
 
     if (!isFormValid()) {
-      console.log('❌ Form is not valid');
       return;
     }
 
-    console.log('✅ Form validation passed, dispatching signInUser action...');
     setLoading(true);
     try {
-      const result = await dispatch(signInUser({ email: formData.email, password: formData.password })).unwrap();
-      console.log('✅ Sign in successful! Result:', result);
+      await dispatch(signInUser({ email: formData.email, password: formData.password })).unwrap();
     } catch (e) {
-      console.error('❌ Sign in failed:', e);
       const errorMessage = String(e).toLowerCase();
-      
-      // If user needs admin approval, navigate to verification screen instead of showing error
       if (errorMessage.includes('admin') || errorMessage.includes('verficication') || errorMessage.includes('verification')) {
-        console.log('ℹ️ User needs admin approval, navigating to PendingVerification screen');
         navigation.reset({
           index: 0,
           routes: [{ name: 'PendingVerification' }],
